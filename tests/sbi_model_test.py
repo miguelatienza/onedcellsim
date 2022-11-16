@@ -78,9 +78,20 @@ def test_simulation_wrapper():
 
     assert(output.size()[0]==10)
 
-    output2 = model.simulation_wrapper(mean_params)
+def test_simulation_wrapper_single_simulation():
 
-    
+    variable_parameter_names = ["E"]
+    prior_min = [1e-3]
+    prior_max = [8e-3]    
+
+    mean_params = 0.5*(np.array(prior_min)+ np.array(prior_max))
+    model = Model(variable_parameter_names, prior_min, prior_max)
+
+    output = model.simulation_wrapper(mean_params,n_sims=1)
+    output_multisims = model.simulation_wrapper(mean_params, n_sims=10)
+    print((output).size())
+    assert(output.ndim==3)
+    assert(output_multisims.size()[0]==10)
 
 
 def test_simulation_wrapper_for_sbi():

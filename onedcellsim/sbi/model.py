@@ -84,13 +84,25 @@ class Model:
 
         if parameter_set is None:
             parameter_set=self.sample(n_sims)
+        
+        parameter_set = np.array(parameter_set)
+        
+        if parameter_set.ndim==0:
+            parameter_set = np.array([parameter_set,])
+        
+        elif (parameter_set.ndim==1) and n_sims==1:
+            pass
 
-        if parameter_set.ndim<1 and (parameter_set.shape[0]>1):
+        elif (parameter_set.ndim==2) & (parameter_set.shape[0]>1) & (n_sims==1):
+            #Infer the number of parameters from the shape of the parameter set
             n_sims = parameter_set.shape[0]
 
-        elif parameter_set.shape[0]!=n_sims:
+        elif (parameter_set.ndim==1) and n_sims>1:
+            #create a parameter set which is repeated n_sims times
             parameter_set = np.repeat(parameter_set.reshape(1, parameter_set.size), n_sims, axis=0)
         
+        else:
+            raise Exception('The parameter shape is not usable')
         
         ##Make it complete by adding the variable parameters
         parameter_set = self.build_full_parameter_set(parameter_set)
