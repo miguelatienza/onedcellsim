@@ -1,0 +1,13 @@
+envs
+models/*
+sbi-logs
+*.tiff
+*.tif
+*.png
+*.pyc
+**/archive/
+**/__pycache__/
+__pycache__/
+**/.ipynb_checkpoints/
+**/pytest_tmp/
+onedcellsim.egg-info/

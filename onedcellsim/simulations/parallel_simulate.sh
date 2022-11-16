@@ -1,0 +1,1 @@
+../../envs/sbi/julia-1.6.7/bin/julia -p 20 parallel_simulate.jl
