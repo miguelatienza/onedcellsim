@@ -9,6 +9,7 @@ from sbi.inference import SNPE
 import torch
 from ..simulations.simulator import Simulator 
 from ..compression import compress
+from tqdm import tqdm
 
 SIMDIR = os.path.join(os.path.dirname(__file__), '../simulations')
 VARNAMES = ['zetaf', 'zetab', 'zetac', 'kf', 'kb', 'Lf', 'Lb', 'vrf', 'vrb', 'xf', 'xb', 'xc', 'vf', 'vb']
@@ -30,6 +31,10 @@ class Model:
         self.prior_min = prior_min
         self.prior_max = prior_max
         self.working_dir = working_dir
+
+        self.prior = utils.torchutils.BoxUniform(
+        low=torch.as_tensor(self.prior_min), high=torch.as_tensor(self.prior_max)
+        )
         
         self.default_parameters = pd.read_csv(os.path.join(SIMDIR, "default_parameters.csv"))
 
@@ -111,7 +116,7 @@ class Model:
             t, simulation = simulator.simulate(parameters = parameter_set, nsims=n_sims, verbose=progress_bar)
             return compress.compressor(simulation)
         
-        simulations = simulator.simulate(parameters = parameter_set, nsims=n_sims)
+        simulations = simulator.simulate(parameters = parameter_set, nsims=n_sims, verbose=progress_bar)
         
         compressed_simulation_0 = compress.compressor(simulations[0])
 
@@ -126,7 +131,10 @@ class Model:
 
         return compressed_simulations
     
-    def simulation_wrapper_for_sbi(self, n_sims, device='cpu', data_dir='data', save=True):
+    def simulation_wrapper_for_sbi(self, n_sims, device='cpu', data_dir='data', save=True, progress_bar=True, max_batch_size=500):
+
+        if max_batch_size<n_sims:
+            return self.batched_simulation_wrapper_for_sbi(n_sims, device='cpu', data_dir='data', save=True, progress_bar=True, max_batch_size=max_batch_size)
 
         self.data_dir = os.path.join(self.working_dir, data_dir)
         if not os.path.isdir(self.data_dir):
@@ -138,7 +146,7 @@ class Model:
    
         simulator = Simulator()
 
-        simulations = simulator.simulate(parameters = parameter_set, nsims=n_sims)
+        simulations = simulator.simulate(parameters = parameter_set, nsims=n_sims, verbose=progress_bar)
 
         compressed_simulation_0 = compress.compressor(simulations[0])
 
@@ -147,7 +155,7 @@ class Model:
         compressed_simulations = torch.zeros(shape, dtype=torch.float32)
         compressed_simulations[0] = compressed_simulation_0
         
-        for i in range(n_sims):
+        for i in tqdm(range(n_sims)):
 
             compressed_simulations[i] = compress.compressor(simulations[i])
 
@@ -160,6 +168,53 @@ class Model:
           
         return compressed_simulations
     
+    def batched_simulation_wrapper_for_sbi(self, n_sims, device='cpu', data_dir='data', save=True, progress_bar=True, max_batch_size=500):
+
+        self.data_dir = os.path.join(self.working_dir, data_dir)
+        
+        if not os.path.isdir(self.data_dir):
+            os.mkdir(self.data_dir)
+        else:
+            raise IsADirectoryError("Data directory already exits, please copy existing data such as simulations and parameter sets to a different folder to avoid conflicts")
+
+        n_batches = int(np.ceil(n_sims/max_batch_size))
+   
+        simulator = Simulator()
+        X_list = []
+        theta_list = []
+        computed_sims=0
+        for batch in tqdm(range(n_batches)):
+
+            batch_size = min(max_batch_size, n_sims-computed_sims)
+
+            parameter_set = self.sample(batch_size)
+            simulations = simulator.simulate(parameters = parameter_set, nsims=batch_size, verbose=False)
+
+            compressed_simulation_0 = compress.compressor(simulations[0])
+
+            shape = [batch_size] + list(compressed_simulation_0.size())
+            
+            compressed_simulations = torch.zeros(shape, dtype=torch.float32)
+            compressed_simulations[0] = compressed_simulation_0
+            
+            for i in range(batch_size):
+
+                compressed_simulations[i] = compress.compressor(simulations[i])
+
+            theta_list.append(parameter_set)
+            X_list.append(compressed_simulations)
+            
+            computed_sims+=batch_size
+            del simulations
+        
+        X = torch.cat(X_list, dim=0)
+        theta = np.concatenate(theta_list, axis=0)
+
+        if save:
+            np.save(os.path.join(self.data_dir, 'theta.npy'), theta)
+            torch.save(X, os.path.join(self.data_dir, 'X.pt'))
+
+    
     def train(self, device='cpu', batch_size=50):
 
         theta = torch.tensor(np.load(
@@ -170,7 +225,17 @@ class Model:
         
         X = X.flatten(1,-1)
 
+        ##Send everything to appropriate device
+        self.prior = utils.torchutils.BoxUniform(
+        low=torch.as_tensor(self.prior_min, device=device), high=torch.as_tensor(self.prior_max, device=device), 
+        device=device
+        )
+        theta = theta.to(device=device)
+        X = X.to(device=device)
+
         inference = SNPE(self.prior, device=device)
+        
+
         density_estimator = inference.append_simulations(theta, X).train(training_batch_size=batch_size, show_train_summary=True)#plot_loss=False)
         posterior = inference.build_posterior(density_estimator)
         

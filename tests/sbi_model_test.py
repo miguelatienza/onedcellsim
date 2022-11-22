@@ -2,7 +2,7 @@ from onedcellsim.sbi.model import Model
 import numpy as np
 import pytest
 import os
-#import torch
+import torch
 
 def test_model():
 
@@ -117,6 +117,32 @@ def test_simulation_wrapper_for_sbi():
 
     os.system(f'rm -r {model_dir}')
 
+def test_batched_simulation_wrapper_for_sbi():
+
+    variable_parameter_names = ["E", "Ve_0"]
+    prior_min = [1e-3, 1e-2]
+    prior_max = [8e-3, 8e-2]
+    model_dir = 'pytest_tmp'
+    os.mkdir(model_dir)
+    
+    model = Model(variable_parameter_names, prior_min, prior_max, working_dir=model_dir)
+    
+    n_sims = 32
+    max_batch_size=10
+    model.simulation_wrapper_for_sbi(n_sims, max_batch_size=max_batch_size)
+    
+    parameters_file = os.path.join(model_dir, 'data/theta.npy')
+    simulations_file = os.path.join(model_dir, 'data/simulations.npy')
+    compressed_simulations_file = os.path.join(model_dir, 'data/X.pt')
+
+    assert(not os.path.isfile(simulations_file))
+    assert(os.path.isfile(parameters_file))
+    assert(os.path.isfile(compressed_simulations_file))
+    assert(np.load(parameters_file).shape[0]==n_sims)
+    assert(torch.load(compressed_simulations_file).shape[0]==n_sims)
+
+    os.system(f'rm -r {model_dir}')
+
 def test_training():
     
     n_sims=100
@@ -185,6 +211,7 @@ def test_training():
     print(f'True value: {params_75[0]}')
     # print(f'second parameter: {intervals[0][1], intervals[1][1]}')
     # print(f'True value: {params_75[1]}')
+    os.system(f'rm -r {model_dir}')
     
 
 
