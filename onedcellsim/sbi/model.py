@@ -198,8 +198,9 @@ class Model:
             compressed_simulations[0] = compressed_simulation_0
             
             for i in range(batch_size):
-
+                
                 compressed_simulations[i] = compress.compressor(simulations[i])
+                
 
             theta_list.append(parameter_set)
             X_list.append(compressed_simulations)

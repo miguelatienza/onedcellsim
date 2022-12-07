@@ -44,10 +44,10 @@ class Simulator():
         
 
 
-
-
     def parallel_simulate(self, parameters=None, t_max=15*3600, t_step=30, t_step_compute=0.5, delta=0, nsims=1, verbose=False, mode="array"):
 
         return self.simulate_jl(parameters=parameters, t_max=t_max, t_step=t_step, t_step_compute=t_step_compute, delta=delta, nsims=nsims, verbose=verbose, mode=mode)
+
+
 
         

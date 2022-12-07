@@ -81,7 +81,7 @@ def get_kernel_set(
     return torch.tensor(kernels, dtype=torch.float32)
 
 
-def compressor(df, shape_kernels=None, v_kernel=torch.tensor([-0.5, 0, 0.5], dtype=torch.float32), sm=100, shape_th=0, v_th=0):
+def compressor(df, shape_kernels=None, v_kernel=torch.tensor([-0.5, 0, 0.5], dtype=torch.float32), sm=100, shape_th=0, v_th=0, min_L=5, max_L=500):
     
     if shape_kernels is None:
         shape_kernels = get_kernel_set()
@@ -107,6 +107,13 @@ def compressor(df, shape_kernels=None, v_kernel=torch.tensor([-0.5, 0, 0.5], dty
 
     X = X[:, sm:-sm]
     Xf = X-Xs
+
+    ##Check if either track is too short or too long at any point
+    L = X[0, :]- X[2, :]
+    if (torch.sum(L<min_L)>0) | (torch.sum(L>max_L)>0):
+        ###Quick short term solution
+        shape_out = (3, 193, 5)
+        return torch.full(shape_out, torch.nan)
     
     n_channels = X.shape[0]
     n_shape_kernels, kernel_size = shape_kernels.shape
