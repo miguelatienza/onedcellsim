@@ -81,7 +81,7 @@ def get_kernel_set(
     return torch.tensor(kernels, dtype=torch.float32)
 
 
-def compressor(df, shape_kernels=None, v_kernel=torch.tensor([-0.5, 0, 0.5], dtype=torch.float32), sm=100, shape_th=0, v_th=0, min_L=5, max_L=500):
+def compressor(df, shape_kernels=None, v_kernel=torch.tensor([-0.5, 0, 0.5], dtype=torch.float32), sm=100, shape_th=0, v_th=0, min_L=5, max_L=500, convstats=True):
     
     if shape_kernels is None:
         shape_kernels = get_kernel_set()
@@ -105,16 +105,29 @@ def compressor(df, shape_kernels=None, v_kernel=torch.tensor([-0.5, 0, 0.5], dty
                 gsmooth(df.xc.values, sm), 
                 gsmooth(df.xb.values, sm)]),dtype=torch.float32)
 
-    X = X[:, sm:-sm]
-    Xf = X-Xs
+    ##Subtract initial value to have the track start at 0
+    X_0 = X[1,0].clone()
+    X -=X_0
 
     ##Check if either track is too short or too long at any point
     L = X[0, :]- X[2, :]
     if (torch.sum(L<min_L)>0) | (torch.sum(L>max_L)>0):
         ###Quick short term solution
-        shape_out = (3, 193, 5)
+        if convstats:
+            shape_out = (3, 193, 5)
+        else:
+            shape_out = X.shape
+
         return torch.full(shape_out, torch.nan)
     
+    elif not convstats:
+        return X
+
+    ##Convolutional statistics
+    #smoothen
+    X = X[:, sm:-sm]
+    Xf = X-Xs
+
     n_channels = X.shape[0]
     n_shape_kernels, kernel_size = shape_kernels.shape
     v_kernel_size = v_kernel.shape[0]

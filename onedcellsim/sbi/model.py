@@ -17,7 +17,7 @@ VARNAMES = ['zetaf', 'zetab', 'zetac', 'kf', 'kb', 'Lf', 'Lb', 'vrf', 'vrb', 'xf
 
 class Model:
 
-    def __init__(self, variable_parameter_names, prior_min, prior_max, working_dir='./', default_parameter_values=None):
+    def __init__(self, variable_parameter_names, prior_min, prior_max, working_dir='./', default_parameter_values=None, convstats=True):
         """_summary_
 
         Args:
@@ -31,6 +31,7 @@ class Model:
         self.prior_min = prior_min
         self.prior_max = prior_max
         self.working_dir = working_dir
+        self.convstats=convstats
 
         self.prior = utils.torchutils.BoxUniform(
         low=torch.as_tensor(self.prior_min), high=torch.as_tensor(self.prior_max)
@@ -68,10 +69,6 @@ class Model:
         return parameter_set
 
     def sample(self, n_sets, device='cpu'):
-
-        self.prior = utils.torchutils.BoxUniform(
-        low=torch.as_tensor(self.prior_min), high=torch.as_tensor(self.prior_max)
-        )
 
         samples = np.array(self.prior.sample((n_sets,)), dtype='float32')
 
@@ -114,11 +111,11 @@ class Model:
 
         if n_sims==1:
             t, simulation = simulator.simulate(parameters = parameter_set, nsims=n_sims, verbose=progress_bar)
-            return compress.compressor(simulation)
+            return compress.compressor(simulation, convstats=self.convstats)
         
         simulations = simulator.simulate(parameters = parameter_set, nsims=n_sims, verbose=progress_bar)
         
-        compressed_simulation_0 = compress.compressor(simulations[0])
+        compressed_simulation_0 = compress.compressor(simulations[0], convstats=self.convstats)
 
         shape = [n_sims] + list(compressed_simulation_0.size())
         
@@ -127,11 +124,11 @@ class Model:
         
         for i in range(n_sims):
 
-            compressed_simulations[i] = compress.compressor(simulations[i])
+            compressed_simulations[i] = compress.compressor(simulations[i], convstats=self.convstats)
 
         return compressed_simulations
     
-    def simulation_wrapper_for_sbi(self, n_sims, device='cpu', data_dir='data', save=True, progress_bar=True, max_batch_size=500):
+    def simulation_wrapper_for_sbi(self, n_sims, device='cpu', data_dir='data', save=True, progress_bar=True, max_batch_size=500, convstats=True):
 
         if max_batch_size<n_sims:
             return self.batched_simulation_wrapper_for_sbi(n_sims, device='cpu', data_dir='data', save=True, progress_bar=True, max_batch_size=max_batch_size)
@@ -148,16 +145,16 @@ class Model:
 
         simulations = simulator.simulate(parameters = parameter_set, nsims=n_sims, verbose=progress_bar)
 
-        compressed_simulation_0 = compress.compressor(simulations[0])
+        compressed_simulation_0 = compress.compressor(simulations[0], convstats=self.convstats)
 
         shape = [n_sims] + list(compressed_simulation_0.size())
-        
         compressed_simulations = torch.zeros(shape, dtype=torch.float32)
         compressed_simulations[0] = compressed_simulation_0
         
         for i in tqdm(range(n_sims)):
 
-            compressed_simulations[i] = compress.compressor(simulations[i])
+
+            compressed_simulations[i] = compress.compressor(simulations[i], convstats=self.convstats)
 
         if save:
             np.save(os.path.join(self.data_dir, 'theta.npy'), parameter_set)
@@ -190,7 +187,7 @@ class Model:
             parameter_set = self.sample(batch_size)
             simulations = simulator.simulate(parameters = parameter_set, nsims=batch_size, verbose=False)
 
-            compressed_simulation_0 = compress.compressor(simulations[0])
+            compressed_simulation_0 = compress.compressor(simulations[0], convstats=self.convstats)
 
             shape = [batch_size] + list(compressed_simulation_0.size())
             
@@ -199,7 +196,7 @@ class Model:
             
             for i in range(batch_size):
                 
-                compressed_simulations[i] = compress.compressor(simulations[i])
+                compressed_simulations[i] = compress.compressor(simulations[i], convstats=self.convstats)
                 
 
             theta_list.append(parameter_set)
@@ -244,6 +241,24 @@ class Model:
         
         return posterior
     
+    def restrict_prior(self, nsims=500):
+
+        restriction_estimator = utils.RestrictionEstimator(prior=self.prior)      
+        
+        ##theta containing only varied parameters
+        theta = self.prior.sample((nsims,))
+
+        ##Simulations
+        x = self.simulation_wrapper(theta, progress_bar=False)
+
+        restriction_estimator.append_simulations(theta, x)
+        restriction_estimator.train()
+        self.restricted_prior = restriction_estimator.restrict_prior()
+
+        self.prior = self.restricted_prior
+        
+        return self.restricted_prior
+    
     def save(self, model_name='model.sbi'):
 
         import pickle
@@ -252,6 +267,8 @@ class Model:
             pickle.dump(self, handle)
         
         print(f'Model saved at {self.model_path}')
+
+        return
 
 
         

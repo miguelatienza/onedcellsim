@@ -89,7 +89,8 @@ def test_simulation_wrapper_too_short():
 
     output = model.simulation_wrapper(params, n_sims=1)
 
-    assert(output is torch.nan)
+    assert(
+        bool(torch.isnan(output).all()))
 
 
 def test_simulation_wrapper_single_simulation():
@@ -101,7 +102,7 @@ def test_simulation_wrapper_single_simulation():
     mean_params = 0.5*(np.array(prior_min)+ np.array(prior_max))
     model = Model(variable_parameter_names, prior_min, prior_max)
 
-    output = model.simulation_wrapper(mean_params,n_sims=2)
+    output = model.simulation_wrapper(mean_params,n_sims=1)
     if output is torch.nan:
         print("output is nan")
     output_multisims = model.simulation_wrapper(mean_params, n_sims=10)
@@ -116,6 +117,7 @@ def test_simulation_wrapper_for_sbi():
     prior_min = [1e-3, 1e-2]
     prior_max = [8e-3, 8e-2]
     model_dir = 'pytest_tmp'
+    assert(not os.path.isdir(model_dir))
     os.mkdir(model_dir)
     
     model = Model(variable_parameter_names, prior_min, prior_max, working_dir=model_dir)
@@ -177,8 +179,9 @@ def test_training():
     mean_params = 0.5*(np.array(prior_min)+ np.array(prior_max))
     output = model.simulation_wrapper(mean_params).flatten()
 
-    n_samples=10_000
-    inferred_parameters = model.posterior.sample((n_samples, ), x=output)
+    n_samples=100
+    #inferred_parameters = model.posterior.sample((n_samples, ), x=output)
+    os.system(f'rm -r {model_dir}')
     return
     print(f'Total prior range: {prior_min, prior_max}')
     print('\n')
@@ -230,6 +233,22 @@ def test_training():
     os.system(f'rm -r {model_dir}')
     
 
+def test_prior_restrictor():
+
+    n_sims=100
+    variable_parameter_names = ["Ve_0"]
+    prior_min = [8e-3]
+    prior_max = [2e-1]
+    model_dir = 'pytest_tmp'
+    
+    default_params = [3e-3, 10, 3e-2, 5e-3, 1.5e-4, 7.5e-5, 7.8e-3, 35, 35, 3, 1e-2, 1.4, 50, 4, 3, 1e-1, 4e-2, 1, 1*0.5,60]
+    model = Model(variable_parameter_names, prior_min, prior_max, working_dir=model_dir, default_parameter_values=default_params, convstats=False)
+
+    restricted_prior = model.restrict_prior(nsims=n_sims)
+
+    samples = restricted_prior.sample((1_000,))
+
+    assert(samples.shape[0]==1_000)
 
 
     
