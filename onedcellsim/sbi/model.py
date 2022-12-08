@@ -108,10 +108,6 @@ class Model:
         
         ##Make it complete by adding the variable parameters
         parameter_set = self.build_full_parameter_set(parameter_set)
-
-        if n_sims==1:
-            t, simulation = simulator.simulate(parameters = parameter_set, nsims=n_sims, verbose=progress_bar)
-            return compress.compressor(simulation, convstats=self.convstats)
         
         simulations = simulator.simulate(parameters = parameter_set, nsims=n_sims, verbose=progress_bar)
         
@@ -122,7 +118,7 @@ class Model:
         compressed_simulations = torch.zeros(shape, dtype=torch.float32)
         compressed_simulations[0] = compressed_simulation_0
         
-        for i in range(n_sims):
+        for i in range(1, n_sims):
 
             compressed_simulations[i] = compress.compressor(simulations[i], convstats=self.convstats)
 

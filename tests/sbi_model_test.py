@@ -107,7 +107,8 @@ def test_simulation_wrapper_single_simulation():
         print("output is nan")
     output_multisims = model.simulation_wrapper(mean_params, n_sims=10)
     print((output).size())
-    assert(output.ndim==3)
+    assert(output.ndim==4)
+    assert(output.size()[0]==1)
     assert(output_multisims.size()[0]==10)
 
 

@@ -13,15 +13,18 @@ class Test_single_core:
     def test_simulate_single_sim(self):
         #self.my_simulator=simulator.Simulator()
         looping = True
-        t, df = single_core_simulator.simulate()
+        df = single_core_simulator.simulate()
         # while looping:
         #     t, df = single_core_simulator.simulate()
         #     plt.plot(t, df[:, 9])
         #     plt.plot(t, df[:, 10])
         #     plt.plot(t, df[:, 11])
         #     plt.show()
-        assert(t.size==df.shape[0])
-        assert(df.mean()!=0)
+        print(df.shape)
+        #assert(t.ndims=)
+        assert(df.ndim==3)
+        assert(df.shape[0]==1)
+        assert((df[0, :, 0]==1).all())
         #     looping = input()!=1
 
     def test_simulate_multiple_sims(self):

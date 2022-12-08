@@ -127,8 +127,8 @@ end
 function runsims(;parameters=undef, t_max=15*3600, t_step=30, t_step_compute=0.5, delta=0, nsims=1, verbose=false, mode="array")
    
     local t, df
-    
-    #print(parameters)
+ 
+    ##handle input parameters
     if parameters==undef
         parameters=[3e-3, 10, 3e-2, 5e-3, 1.5e-4, 7.5e-5, 7.8e-3, 35, 35, 3, 1e-2, 1.4, 50, 4, 3, 1e-1, 4e-2, 1, 1, 45]
     end
@@ -136,12 +136,17 @@ function runsims(;parameters=undef, t_max=15*3600, t_step=30, t_step_compute=0.5
     if (ndims(parameters)==1) & (nsims>1)
         parameters = reshape(parameters, (1, size(parameters)[1]))
         parameters = repeat(parameters, outer=nsims)
+    elseif (nsims==1) & (ndims(parameters)==1) 
+        parameters = reshape(parameters, (1, size(parameters)[1]))
     end
 
     """zetaf zetab zetac kf kb Lf Lb vrf vrb xf xb xc vf vb"""
-    if nsims==1
+    if nsims==1e90
         t, df1 = simulate(parameters, t_max, t_step, t_step_compute, delta)
-        return t, df1
+        id = ones(Int, (n_points))
+        df = cat(2, id, t)
+        df = cat(2, df, df1)
+        return df
     end
 
     t, df1 = simulate(parameters[1,:], t_max, t_step, t_step_compute, delta)
@@ -151,6 +156,10 @@ function runsims(;parameters=undef, t_max=15*3600, t_step=30, t_step_compute=0.5
     df[1, :, 3:end]=df1
     df[1, :, 1].=1
     df[1, :, 2]=t
+
+    if nsims==1
+        return df
+    end
 
     if verbose
         for i in ProgressBar(2:nsims)
