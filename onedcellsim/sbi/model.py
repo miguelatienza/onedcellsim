@@ -17,7 +17,7 @@ VARNAMES = ['zetaf', 'zetab', 'zetac', 'kf', 'kb', 'Lf', 'Lb', 'vrf', 'vrb', 'xf
 
 class Model:
 
-    def __init__(self, variable_parameter_names, prior_min, prior_max, working_dir='./', default_parameter_values=None, convstats=True):
+    def __init__(self, variable_parameter_names, prior_min, prior_max, working_dir='./', default_parameter_values=None, convstats=True, conv_net=False, device='cpu'):
         """_summary_
 
         Args:
@@ -32,10 +32,14 @@ class Model:
         self.prior_max = prior_max
         self.working_dir = working_dir
         self.convstats=convstats
+        self.conv_net=conv_net
+        self.device=device
+        if self.convstats==True and conv_net==True:
+            self.convstats=False
+        
 
         self.prior = utils.torchutils.BoxUniform(
-        low=torch.as_tensor(self.prior_min), high=torch.as_tensor(self.prior_max)
-        )
+        low=torch.as_tensor(self.prior_min), high=torch.as_tensor(self.prior_max))
         
         self.default_parameters = pd.read_csv(os.path.join(SIMDIR, "default_parameters.csv"))
 
@@ -68,9 +72,14 @@ class Model:
 
         return parameter_set
 
-    def sample(self, n_sets, device='cpu'):
+    def sample(self, n_sets):
 
-        samples = np.array(self.prior.sample((n_sets,)), dtype='float32')
+        if 'restricted_prior' in dir(self):
+            prior=self.restricted_prior
+        else:
+            prior = self.prior
+
+        samples = np.array(prior.sample((n_sets,)), dtype='float32')
 
         parameter_set = self.build_full_parameter_set(samples)
         #parameter_set = np.repeat(self.default_parameter_values[np.newaxis, :], n_sets, axis=0)
@@ -111,7 +120,7 @@ class Model:
         
         simulations = simulator.simulate(parameters = parameter_set, nsims=n_sims, verbose=progress_bar)
         
-        compressed_simulation_0 = compress.compressor(simulations[0], convstats=self.convstats)
+        compressed_simulation_0 = compress.compressor(simulations[0], convstats=self.convstats, conv_net=self.conv_net)
 
         shape = [n_sims] + list(compressed_simulation_0.size())
         
@@ -124,10 +133,10 @@ class Model:
 
         return compressed_simulations
     
-    def simulation_wrapper_for_sbi(self, n_sims, device='cpu', data_dir='data', save=True, progress_bar=True, max_batch_size=500, convstats=True):
-
+    def simulation_wrapper_for_sbi(self, n_sims, data_dir='data', save=True, progress_bar=True, max_batch_size=500, convstats=True):
+        
         if max_batch_size<n_sims:
-            return self.batched_simulation_wrapper_for_sbi(n_sims, device='cpu', data_dir='data', save=True, progress_bar=True, max_batch_size=max_batch_size)
+            return self.batched_simulation_wrapper_for_sbi(n_sims, data_dir='data', save=True, progress_bar=True, max_batch_size=max_batch_size)
 
         self.data_dir = os.path.join(self.working_dir, data_dir)
         if not os.path.isdir(self.data_dir):
@@ -141,7 +150,7 @@ class Model:
 
         simulations = simulator.simulate(parameters = parameter_set, nsims=n_sims, verbose=progress_bar)
 
-        compressed_simulation_0 = compress.compressor(simulations[0], convstats=self.convstats)
+        compressed_simulation_0 = compress.compressor(simulations[0], convstats=self.convstats, conv_net=self.conv_net)
 
         shape = [n_sims] + list(compressed_simulation_0.size())
         compressed_simulations = torch.zeros(shape, dtype=torch.float32)
@@ -161,7 +170,7 @@ class Model:
           
         return compressed_simulations
     
-    def batched_simulation_wrapper_for_sbi(self, n_sims, device='cpu', data_dir='data', save=True, progress_bar=True, max_batch_size=500):
+    def batched_simulation_wrapper_for_sbi(self, n_sims, data_dir='data', save=True, progress_bar=True, max_batch_size=500):
 
         self.data_dir = os.path.join(self.working_dir, data_dir)
         
@@ -183,7 +192,7 @@ class Model:
             parameter_set = self.sample(batch_size)
             simulations = simulator.simulate(parameters = parameter_set, nsims=batch_size, verbose=False)
 
-            compressed_simulation_0 = compress.compressor(simulations[0], convstats=self.convstats)
+            compressed_simulation_0 = compress.compressor(simulations[0], convstats=self.convstats, conv_net=self.conv_net)
 
             shape = [batch_size] + list(compressed_simulation_0.size())
             
@@ -192,7 +201,7 @@ class Model:
             
             for i in range(batch_size):
                 
-                compressed_simulations[i] = compress.compressor(simulations[i], convstats=self.convstats)
+                compressed_simulations[i] = compress.compressor(simulations[i], convstats=self.convstats, conv_net=self.conv_net)
                 
 
             theta_list.append(parameter_set)
@@ -209,8 +218,11 @@ class Model:
             torch.save(X, os.path.join(self.data_dir, 'X.pt'))
 
     
-    def train(self, device='cpu', batch_size=50):
+    def train(self, batch_size=50):
 
+        if self.conv_net:
+            return self.train_conv_net(batch_size=batch_size)
+        
         theta = torch.tensor(np.load(
             os.path.join(self.data_dir, 'theta.npy')))[:, self.variable_parameter_indices]
         
@@ -219,15 +231,11 @@ class Model:
         
         X = X.flatten(1,-1)
 
-        ##Send everything to appropriate device
-        self.prior = utils.torchutils.BoxUniform(
-        low=torch.as_tensor(self.prior_min, device=device), high=torch.as_tensor(self.prior_max, device=device), 
-        device=device
-        )
-        theta = theta.to(device=device)
-        X = X.to(device=device)
 
-        inference = SNPE(self.prior, device=device)
+        theta = theta.to(device=self.device)
+        X = X.to(device=self.device)
+
+        inference = SNPE(self.prior, device=self.device)
         
 
         density_estimator = inference.append_simulations(theta, X).train(training_batch_size=batch_size, show_train_summary=True)#plot_loss=False)
@@ -237,8 +245,41 @@ class Model:
         
         return posterior
     
-    def restrict_prior(self, nsims=500):
+    def train_conv_net(self, batch_size=50):
 
+        theta = torch.tensor(np.load(
+            os.path.join(self.data_dir, 'theta.npy')))[:, self.variable_parameter_indices]
+        
+        X = torch.load(
+            os.path.join(self.data_dir, 'X.pt'))
+
+        X = X.flatten(1,-1)
+
+        theta = theta.to(device=self.device)
+        X = X.to(device=self.device)
+
+        embedding_net = compress.SummaryNet()
+        neural_posterior=utils.posterior_nn(model='maf', 
+            embedding_net=embedding_net,
+            )
+
+        self.prior = utils.torchutils.BoxUniform(
+        low=torch.as_tensor(self.prior_min, device=self.device), high=torch.as_tensor(self.prior_max, device=self.device),
+        device=self.device
+        )
+
+        inference=SNPE(prior=self.prior, density_estimator=neural_posterior, device=self.device)
+    
+        density_estimator = inference.append_simulations(theta, X).train(training_batch_size=batch_size, show_train_summary=True)#plot_loss=False)
+        posterior = inference.build_posterior(density_estimator)
+        
+        self.posterior = posterior
+        
+        return posterior
+
+    
+    def restrict_prior(self, nsims=500):
+        
         restriction_estimator = utils.RestrictionEstimator(prior=self.prior)      
         
         ##theta containing only varied parameters
@@ -251,10 +292,10 @@ class Model:
         restriction_estimator.train()
         self.restricted_prior = restriction_estimator.restrict_prior()
 
-        self.prior = self.restricted_prior
         
         return self.restricted_prior
-    
+
+
     def save(self, model_name='model.sbi'):
 
         import pickle

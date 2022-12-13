@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-
+import torch.nn as nn
 
 def gkernel(lsig=2, sig=30):
     
@@ -80,9 +80,45 @@ def get_kernel_set(
     
     return torch.tensor(kernels, dtype=torch.float32)
 
+def prepare_for_convnet(df):
 
-def compressor(df, shape_kernels=None, v_kernel=torch.tensor([-0.5, 0, 0.5], dtype=torch.float32), sm=100, shape_th=0, v_th=0, min_L=5, max_L=500, convstats=True, fourier_stats=False):
+    if isinstance(df, np.ndarray):
+        X = torch.tensor(
+        np.stack([df[:, 11], df[:, 12], df[:, 13]]),
+             dtype=torch.float32)
+        # Xs = torch.tensor(
+        # np.stack([gsmooth(df[:,11], sm), 
+        #       gsmooth(df[:, 12], sm), 
+        #       gsmooth(df[:, 13], sm)]),dtype=torch.float32)
+
+    else:
+        X = torch.tensor(
+        np.stack([df.xf.values, df.xb.values, df.xc.values]),
+                dtype=torch.float32)
+
+        # Xs = torch.tensor(
+        # np.stack([gsmooth(df.xf.values, sm), 
+        #         gsmooth(df.xb.values, sm), 
+        #         gsmooth(df.xc.values, sm)]),dtype=torch.float32)
+
+    X = X - torch.clone(X[2, 0])
+
+    assert((X.ndim==3) or (X.ndim==2), 'Input shape should be (N, 3, L) or (3, L)')
     
+    if X.ndim==2:
+        assert(X.shape[0]==3)
+        X=X.view(1, X.shape[0], X.shape[1])
+    else:
+        assert(X.shape[1]==3)
+        X=X.view(X.shape[0], 1, X.shape[1], X.shape[2])
+
+    return X
+
+def compressor(df, shape_kernels=None, v_kernel=torch.tensor([-0.5, 0, 0.5], dtype=torch.float32), sm=100, shape_th=0, v_th=0, min_L=5, max_L=500, convstats=True, conv_net=False):
+    
+    if conv_net:
+        return prepare_for_convnet(df)
+
     if shape_kernels is None:
         shape_kernels = get_kernel_set()
 
@@ -181,3 +217,62 @@ def stat_to_image(stat, lengths, t1_fracs, delta_t):
     
     stat = stat.reshape((lengths.size, t1_fracs.size))
     return stat
+
+class SummaryNet(nn.Module):
+
+    def __init__(self):
+        
+        self.kernel_size = (3, 30)
+        super().__init__()
+
+        #2D convlution
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=64, kernel_size=self.kernel_size)
+        
+        self.relu1 = nn.ReLU()
+
+        self.pool1 = nn.MaxPool2d(kernel_size=(1, 100))
+        
+        self.reshape = Reshape()
+
+        self.fc = nn.Linear(in_features=64, out_features=10)
+        
+        #self.reshape2 = nn.Flatten(start_dim=1, end_dim=2)
+        self.flatten = nn.Flatten(1, -1)
+        self.rnn = torch.nn.RNN(input_size=10, hidden_size=1, batch_first=True)
+
+        self.seqnet = nn.Sequential(
+             self.conv1,
+             self.relu1,
+             self.pool1,
+             self.reshape,
+             self.fc,
+             #self.flatten,
+         )
+
+    def forward(self, x):
+        #x should have shape (N, 1, 3, L)
+        #N: number of tracks
+        #3: front, nucleus and rear
+        #L: length of the track (L>8 hours)
+
+        N=x.shape[0]
+        W=3
+        L=int(x.nelement()/(3*N))
+        x = x.view(N, 1, 3, L)
+        #print('I get to here')
+        ##Sequential Layer
+      
+        for layer in self.seqnet:
+            x=layer(x)
+    
+        # ##Recurrent Layer
+        x = self.rnn(x)[0]
+        x = x.reshape(N, int(x.nelement()/N))
+        return x
+
+class Reshape(torch.nn.Module):
+    def forward(self, x):
+        N, n_frames, _, n_features = x.size()
+        return x.view(N, n_features, n_frames)
+
+

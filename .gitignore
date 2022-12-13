@@ -12,3 +12,4 @@ __pycache__/
 **/pytest_tmp/
 onedcellsim.egg-info/
 **/data/
+**/drafts/

@@ -80,12 +80,4 @@ class Test_single_core:
 
         assert(isinstance(df, np.ndarray))
         assert(df.shape[0]==parameter_set.shape[0])
-        
-
-
-
-    # def test_Simulator_multiprocess(self):
-    #     return
-    #     my_simulator=simulator.Simulator(p=3)
-    #     assert(True)
-
+        return
