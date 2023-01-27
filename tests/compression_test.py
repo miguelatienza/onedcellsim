@@ -10,7 +10,7 @@ def test_compressor_single_sim():
     t, simulations = sim.simulate(nsims=1)
     
     compressed_results = compress.compressor(simulations)
-
+    
 
 
     

@@ -79,7 +79,7 @@ class Model:
         else:
             prior = self.prior
 
-        samples = np.array(prior.sample((n_sets,)), dtype='float32')
+        samples = np.array(prior.sample((n_sets,)).cpu(), dtype='float32')
 
         parameter_set = self.build_full_parameter_set(samples)
         #parameter_set = np.repeat(self.default_parameter_values[np.newaxis, :], n_sets, axis=0)
@@ -162,6 +162,7 @@ class Model:
             compressed_simulations[i] = compress.compressor(simulations[i], convstats=self.convstats)
 
         if save:
+            
             np.save(os.path.join(self.data_dir, 'theta.npy'), parameter_set)
             
             np.save(os.path.join(self.data_dir, 'simulations.npy'), simulations)
@@ -184,7 +185,12 @@ class Model:
         simulator = Simulator()
         X_list = []
         theta_list = []
+        sims_shape = np.array(simulator.simulate(nsims=2, verbose=False).shape, dtype=int)
+        sims_shape[sims_shape==2]=n_sims
+        sims_shape=tuple(sims_shape)
+        full_simulations = np.memmap(os.path.join(self.data_dir, 'simulations.dat'), dtype='float64', mode='w+', shape=sims_shape)
         computed_sims=0
+        start_index=0
         for batch in tqdm(range(n_batches)):
 
             batch_size = min(max_batch_size, n_sims-computed_sims)
@@ -197,6 +203,7 @@ class Model:
             shape = [batch_size] + list(compressed_simulation_0.size())
             
             compressed_simulations = torch.zeros(shape, dtype=torch.float32)
+            
             compressed_simulations[0] = compressed_simulation_0
             
             for i in range(batch_size):
@@ -206,7 +213,10 @@ class Model:
 
             theta_list.append(parameter_set)
             X_list.append(compressed_simulations)
-            
+            full_simulations[start_index:start_index+batch_size]=simulations
+
+            start_index+=batch_size
+
             computed_sims+=batch_size
             del simulations
         
@@ -215,6 +225,9 @@ class Model:
 
         if save:
             np.save(os.path.join(self.data_dir, 'theta.npy'), theta)
+
+            full_simulations.flush()
+            np.save(os.path.join(self.data_dir, 'simulations.npy'), full_simulations)
             torch.save(X, os.path.join(self.data_dir, 'X.pt'))
 
     
@@ -239,7 +252,7 @@ class Model:
         
 
         density_estimator = inference.append_simulations(theta, X).train(training_batch_size=batch_size, show_train_summary=True)#plot_loss=False)
-        posterior = inference.build_posterior(density_estimator)
+        posterior = inference.build_posterior(density_estimator, sample_width='mcmc')
         
         self.posterior = posterior
         
@@ -268,10 +281,10 @@ class Model:
         device=self.device
         )
 
-        inference=SNPE(prior=self.prior, density_estimator=neural_posterior, device=self.device)
+        self.inference=SNPE(prior=self.prior, density_estimator=neural_posterior, device=self.device)
     
-        density_estimator = inference.append_simulations(theta, X).train(training_batch_size=batch_size, show_train_summary=True)#plot_loss=False)
-        posterior = inference.build_posterior(density_estimator)
+        self.density_estimator = self.inference.append_simulations(theta, X).train(training_batch_size=batch_size, show_train_summary=True)#plot_loss=False)
+        posterior = self.inference.build_posterior(self.density_estimator, sample_with='mcmc')
         
         self.posterior = posterior
         

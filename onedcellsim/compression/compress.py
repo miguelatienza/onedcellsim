@@ -222,12 +222,12 @@ class SummaryNet(nn.Module):
 
     def __init__(self):
         
-        self.kernel_size = (3, 30)
+        self.shape_kernel_size = (3, 30)
         super().__init__()
 
-        #2D convlution
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=64, kernel_size=self.kernel_size)
-        
+        #2D convolution
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=64, kernel_size=(3,30))
+
         self.relu1 = nn.ReLU()
 
         self.pool1 = nn.MaxPool2d(kernel_size=(1, 100))
@@ -248,6 +248,16 @@ class SummaryNet(nn.Module):
              self.fc,
              #self.flatten,
          )
+        
+        ##Convolutions for long term features (v)
+        self.conv2 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=(3, 15), dilation=(1, 40), stride=(1, 240))
+        #self.pool2 = nn.AvgPool2d(kernel_size=(1, 10)) 
+
+        self.vnet = nn.Sequential(
+            self.conv2,
+            #self.pool2,
+
+        )
 
     def forward(self, x):
         #x should have shape (N, 1, 3, L)
@@ -261,13 +271,28 @@ class SummaryNet(nn.Module):
         x = x.view(N, 1, 3, L)
         #print('I get to here')
         ##Sequential Layer
-      
+        x_short = torch.clone(x)
+        #print('Running short features net')
+        #print(x_short.size())
         for layer in self.seqnet:
-            x=layer(x)
-    
+            #print(layer)
+            x_short=layer(x_short)
+            #print(x_short.size())
+
+        x_long = torch.clone(x)
+        #print('Running Long feature net')
+        for layer in self.vnet:
+            #print(layer)
+            x_long = layer(x_long)
+            #print(x_long.shape)
+
         # ##Recurrent Layer
-        x = self.rnn(x)[0]
-        x = x.reshape(N, int(x.nelement()/N))
+        #x_short = self.rnn(x)[0]
+        x_short = x_short.reshape(N, int(x_short.nelement()/N))
+        #print('short:', x_short.shape)
+        x_long = x_long.reshape(N, int(x_long.nelement()/N))
+        #print('long:',  x_long.shape)
+        x = torch.cat((x_short, x_long), axis=-1)
         return x
 
 class Reshape(torch.nn.Module):
