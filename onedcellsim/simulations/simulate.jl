@@ -39,12 +39,19 @@ function single_time_step(stepsize, compute_step, n_sub_steps, dtot, params, var
 end
 
 
-function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02)
-
+function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02; v_0=0.002, kf0=15, kb0=0)
+    
     local variables, parameters, i
 
     E,L0,Ve_0,k_minus,c1,c2,c3,k_max,Kk,nk,k0,zeta_max,Kzeta,nzeta,b,zeta0,alpha,aoverN,epsilon,B = params
     
+    if kf0 == 0 
+        kf0=k0
+    end
+    if kb0==0
+        kb0=k0
+    end
+
     n_sub_steps = Int64(ceil(t_step/t_step_compute))
     t_step_compute = t_step/n_sub_steps
     n_steps = Int(t_max/t_step)
@@ -56,15 +63,17 @@ function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02)
     xf=copy(zeros_arr); xf[1]=L0#front in um
     L=copy(zeros_arr); L[1]=2*L0 # Cell length in um
 
-    vb=copy(zeros_arr) #rear velpocity in um/s
-    vc=copy(zeros_arr) #nucleus velocity in um/s
-    vf=copy(zeros_arr) #front velocity in um/s
+    vb=ones(size(ts,1)).*v_0 #rear velpocity in um/s
+    vc=copy(vb) #nucleus velocity in um/s
+    vf=copy(vb) #front velocity in um/s
     
-    vrf=copy(zeros_arr)#; vrf[1]=Ve_0
-    vrb=copy(zeros_arr)#; vrb[1]=Ve_0
-    
-    kf=copy(zeros_arr); kf[1]=k0
-    kb=copy(zeros_arr); kb[1]=k0
+    #vrf=Ve_0 .- vf .- k_minus#; vrf[1]=Ve_0
+    #vrb=Ve_0 .+ vb .- k_minus#; vrb[1]=Ve_0
+    vrf=copy(zeros_arr)
+    vrb=copy(zeros_arr)
+
+    kf=copy(zeros_arr); kf[1]=kf0
+    kb=copy(zeros_arr); kb[1]=kb0
 
     zetaf=copy(zeros_arr)
     zetaf.=zeta_edge(zeta0, zeta_max, B, Kzeta, nzeta)
@@ -73,6 +82,7 @@ function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02)
     zetac.=zeta_nuc(b, zeta0, zeta_max, B, Kzeta, nzeta)
     k_lim = k_lim_func(k0, k_max, B, Kk, nk)
     
+
     Lf = xf-xc
     Lb=xc-xb
 

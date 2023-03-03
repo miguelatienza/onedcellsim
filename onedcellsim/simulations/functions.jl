@@ -12,7 +12,7 @@ function velocities(aoverN, zetaf, zetab, Ve_0, kf, kb, k_minus, E, Lf, Lb, L0)
 
         vrb = (E*(Lb-L0) + zetab*Ve_0)/(kb+zetab)
         vb = vrb -Ve_0
-    
+        #print(vf, "  ",  vrf, "  ", Ve_0, "  ", vf+vrf-Ve_0, "\n")
     #Cf=1; Cb=1; betaf=1; betab=1; vf=1 ; vb=1; vrf=1; vrb=1
     else
 
@@ -22,7 +22,6 @@ function velocities(aoverN, zetaf, zetab, Ve_0, kf, kb, k_minus, E, Lf, Lb, L0)
         betaf=kf*(k_minus*zetaf - E*(Lf-L0))/(zetaf+kf)
         betab=kb*(k_minus*zetab - E*(Lb-L0))/(zetab+kb)
 
-        vb = -(1/aoverN*zetab)* lambertw(aoverN*Cb*exp(aoverN*betab)) + (E*(Lb-L0) + k_minus*kb)/(zetab+kb)
         #Cf=1; Cb=1; betaf=1; betab=1; vf=1 ; vb=1; vrf=1; vrb=1
         vf = (1/aoverN*zetaf)* lambertw(aoverN*Cf*exp(aoverN*betaf)) - (E*(Lf-L0) + k_minus*kf)/(zetaf+kf)
         vb = -(1/aoverN*zetab)* lambertw(aoverN*Cb*exp(aoverN*betab)) + (E*(Lb-L0) + k_minus*kb)/(zetab+kb)
