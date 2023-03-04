@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from julia.api import Julia
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QSlider, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QSizePolicy, QSpacerItem, QFileDialog, QLabel)
 
-jpath = "/project/ag-moonraedler/MAtienza/cellsbi/envs/sbi/julia-1.6.7/bin/julia"
+jpath = "/home/miguel/onedcellsim/venv/julia-1.6.7/bin/julia"
 jl = Julia(runtime=jpath, compiled_modules=False)
 path_to_julia_scripts = "/project/ag-moonraedler/MAtienza/cellsbi/simulations/"
 path_to_julia_scripts = "./"
@@ -30,7 +30,7 @@ simulate = jl.eval(f"""
 def run_simulation(params):
     
     full_params = np.array(params)
-    print(full_params)
+    #print(full_params)
     t_max, t_step = 15*60*60,30
     t_step_compute=0.5
     #params, particle_id, verbose, t_max, t_step, t_step_compute = args
@@ -76,11 +76,16 @@ class SimulationApp(QtWidgets.QMainWindow):
         self.line_3, = self.ax[0].plot([], [], color='blue')
         #self.ax[0].set_xlabel('Time in hours', fontsize=20)
         self.ax[0].set_xticks([])
-        self.ax[0].set_ylabel(r'Position in $\mathrm{\mu} m$', fontsize=20)
+        # self.ax[0].set_ylabel(r'Position in $\mathrm{\mu} m$', fontsize=20)
+        self.ax[0].set_ylabel(r'x ($\mathrm{\mu} m$)', fontsize=20)
 
+        
         ##Plot the kappa dynamics
         self.line_4, = self.ax[1].plot([], [], color='red', label='front')
         self.line_5, = self.ax[1].plot([], [], color='blue', label='rear')
+        self.line_4_1, = self.ax[1].plot([], [], color='red', alpha=0.5)
+        self.line_5_1, = self.ax[1].plot([], [], color='blue', alpha=0.5)
+        
           
         #self.ax[1].set_xlabel('Time in hours', fontsize=20)
         self.ax[1].set_xticks([])
@@ -104,7 +109,8 @@ class SimulationApp(QtWidgets.QMainWindow):
         self.ax[3].plot(np.linspace(0,15,100), np.zeros(100), color='black', alpha=0.5)
 
         self.ax[3].set_xlabel('Time in hours', fontsize=20)
-        self.ax[3].set_ylabel(r'$\mathrm{Protrusion force (nN \mu m^{-1})}$', fontsize=20)
+        #self.ax[3].set_ylabel(r'$\mathrm{Protrusion force (nN \mu m^{-1})}$', fontsize=20)
+        self.ax[3].set_ylabel(r'$\mathrm{F_p (nN \mu m^{-1})}$', fontsize=20)
         self.ax[3].legend()
         
         self.create_widgets()
@@ -385,31 +391,36 @@ class SimulationApp(QtWidgets.QMainWindow):
         obs = run_simulation(params)
         t, front, rear, nucleus, kf, kb, vrf, vrb, vf, vb = obs.t.values, obs.xf.values, obs.xb.values, obs.xc.values, obs.kf.values, obs.kb.values, obs.vrf.values, obs.vrb.values, obs.vf, obs.vb
         
-        Ff = -vrf*kf
-        Fb = vrb*kb
+        Ff = vrf*kf 
+        Fb = vrb*kb 
 
         # update the track
         self.line_1.set_data(t/3600, front)
         self.line_2.set_data(t/3600, nucleus)
         self.line_3.set_data(t/3600, rear)
 
+        k_lim = k0 + (k_max * B**nk/(Kk**nk + B**nk))
+        kfeq = c1*k_lim/(c1 + c2*np.exp(np.abs(vrf)/c3))
+        kbeq = c1*k_lim/(c1 + c2*np.exp(np.abs(vrb)/c3))
+        
         self.line_4.set_data(t/3600, kf)
         self.line_5.set_data(t/3600, kb)
+
+        self.line_4_1.set_data(t/3600, kfeq)
+        self.line_5_1.set_data(t/3600, kbeq)
+    
 
         self.line_6.set_data(t/3600, vrf)
         self.line_7.set_data(t/3600, vrb)
         
-        checkf = vf + vrf 
-        - Ve_0*np.exp(-aoverN*Ff) + k_minus
+        checkf = vf + vrf - Ve_0*np.exp(-aoverN*Ff) + k_minus
 
-        checkb = vb
-        - vrb
-        - Ve_0*np.exp(-aoverN*Fb) + 0*k_minus
+        checkb = vrb -vb - Ve_0*np.exp(-aoverN*Fb) + k_minus
   
-        # self.line_8.set_data(t/3600, Ff)
-        # self.line_9.set_data(t/3600, Fb)
-        self.line_8.set_data(t/3600, checkf)
-        self.line_9.set_data(t/3600, checkb)
+        self.line_8.set_data(t/3600, Ff)
+        self.line_9.set_data(t/3600, Fb)
+        # self.line_8.set_data(t/3600, checkf)
+        # self.line_9.set_data(t/3600, checkb)
 
 
         self.ax[0].set_xlim(-0.1, 15.1)
@@ -423,12 +434,13 @@ class SimulationApp(QtWidgets.QMainWindow):
             max(vrb.max(), vrf.max()))  
 
         self.ax[3].set_xlim(-0.1, 15.1)
-        # self.ax[3].set_ylim(min(Fb.min(), Ff.min()), 
-        #     max(Fb.max(), Ff.max())) 
-        self.ax[3].set_ylim(min(checkb.min(), checkf.min()), 
-            max(checkb.max(), checkf.max()))   
+        self.ax[3].set_ylim(min(Fb.min(), Ff.min()), 
+            max(Fb.max(), Ff.max())) 
+        # self.ax[3].set_ylim(min(checkb.min(), checkf.min()), 
+        #     max(checkb.max(), checkf.max()))   
+        # self.ax[3].set_ylim(-0.01, 0.01)   
 
-        self.Ve_0_line.set_data(t/3600, np.ones(t.size)*self.Ve_0.value())
+        # self.Ve_0_line.set_data(t/3600, np.ones(t.size)*self.Ve_0.value())
 
         self.fig.canvas.draw()
 
