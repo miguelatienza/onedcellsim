@@ -9,7 +9,15 @@ import matplotlib.pyplot as plt
 from julia.api import Julia
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QSlider, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QSizePolicy, QSpacerItem, QFileDialog, QLabel)
 
-jpath = "/home/miguel/onedcellsim/venv/julia-1.6.7/bin/julia"
+# jpath = "/home/miguel/onedcellsim/venv/julia-1.6.7/bin/julia"
+# jl = Julia(runtime=jpath, compiled_modules=False)
+# path_to_julia_scripts = "/project/ag-moonraedler/MAtienza/cellsbi/simulations/"
+# path_to_julia_scripts = "./"
+# julia_simulate_file = os.path.join(
+#                 os.path.dirname(__file__), "simulate.jl"
+#             )
+
+jpath = "/project/ag-moonraedler/MAtienza/cellsbi/envs/sbi/julia-1.6.7/bin/julia"
 jl = Julia(runtime=jpath, compiled_modules=False)
 path_to_julia_scripts = "/project/ag-moonraedler/MAtienza/cellsbi/simulations/"
 path_to_julia_scripts = "./"
@@ -26,12 +34,12 @@ simulate = jl.eval(f"""
 #from simulator import Simulator
 
 #simulator = Simulator()
-
+DURATION=4.5
 def run_simulation(params):
     
     full_params = np.array(params)
     #print(full_params)
-    t_max, t_step = 15*60*60,30
+    t_max, t_step = DURATION*60*60,30
     t_step_compute=0.5
     #params, particle_id, verbose, t_max, t_step, t_step_compute = args
     
@@ -83,8 +91,8 @@ class SimulationApp(QtWidgets.QMainWindow):
         ##Plot the kappa dynamics
         self.line_4, = self.ax[1].plot([], [], color='red', label='front')
         self.line_5, = self.ax[1].plot([], [], color='blue', label='rear')
-        self.line_4_1, = self.ax[1].plot([], [], color='red', alpha=0.5)
-        self.line_5_1, = self.ax[1].plot([], [], color='blue', alpha=0.5)
+        self.line_4_1, = self.ax[1].plot([], [], color='red', alpha=0)
+        self.line_5_1, = self.ax[1].plot([], [], color='blue', alpha=0)
         
           
         #self.ax[1].set_xlabel('Time in hours', fontsize=20)
@@ -99,14 +107,14 @@ class SimulationApp(QtWidgets.QMainWindow):
         self.ax[2].set_xticks([])
         #self.ax[2].set_xlabel('Time in hours', fontsize=20)
         self.ax[2].set_ylabel(r'$\mathrm{v_r (\mu m/s)}$', fontsize=20)
-        self.ax[2].plot(np.linspace(0,15,100), np.zeros(100), color='black', alpha=0.5)
-        self.Ve_0_line, = self.ax[2].plot(np.linspace(0,15,100), np.zeros(100), color='green', alpha=0.5, label='$\mathrm{V_e^0}$')
+        self.ax[2].plot(np.linspace(0,DURATION,100), np.zeros(100), color='black', alpha=0.5)
+        self.Ve_0_line, = self.ax[2].plot(np.linspace(0,DURATION,100), np.zeros(100), color='green', alpha=1, label='$\mathrm{V_e^0}$')
         self.ax[2].legend()
         
         ##Plot the retrograde force
         self.line_8, = self.ax[3].plot([], [], color='red', label='front')
         self.line_9, = self.ax[3].plot([], [], color='blue', label='rear')
-        self.ax[3].plot(np.linspace(0,15,100), np.zeros(100), color='black', alpha=0.5)
+        self.ax[3].plot(np.linspace(0,DURATION,100), np.zeros(100), color='black', alpha=0.5)
 
         self.ax[3].set_xlabel('Time in hours', fontsize=20)
         #self.ax[3].set_ylabel(r'$\mathrm{Protrusion force (nN \mu m^{-1})}$', fontsize=20)
@@ -390,7 +398,19 @@ class SimulationApp(QtWidgets.QMainWindow):
         params = [E, L0, Ve_0, k_minus, c1, c2, c3, k_max, Kk, nk, k0, zeta_max, Kzeta, nzeta, b, zeta0, 4e-2, aoverN, epsilon, B]
         obs = run_simulation(params)
         t, front, rear, nucleus, kf, kb, vrf, vrb, vf, vb = obs.t.values, obs.xf.values, obs.xb.values, obs.xc.values, obs.kf.values, obs.kb.values, obs.vrf.values, obs.vrb.values, obs.vf, obs.vb
-        
+
+        locator = t>=(2*3600)
+        t=t[locator]-(2*3600)
+        front = front[locator]
+        rear = rear[locator]
+        nucleus=nucleus[locator]
+        vrf=vrf[locator]
+        vrb=vrb[locator]
+        kf=kf[locator]
+        kb=kb[locator]
+        vf = vf[locator]
+        vb=vb[locator]
+
         Ff = vrf*kf 
         Fb = vrb*kb 
 
@@ -421,29 +441,29 @@ class SimulationApp(QtWidgets.QMainWindow):
         self.line_9.set_data(t/3600, Fb)
         # self.line_8.set_data(t/3600, checkf)
         # self.line_9.set_data(t/3600, checkb)
+        DURATION=2.5
 
-
-        self.ax[0].set_xlim(-0.1, 15.1)
+        self.ax[0].set_xlim(-DURATION*0.01, DURATION*1.01)
         self.ax[0].set_ylim(rear.min()-10, front.max()+10)
 
-        self.ax[1].set_xlim(-0.1, 15.1)
-        self.ax[1].set_ylim(-0.1, self.k_max.value()+1)
+        self.ax[1].set_xlim(-DURATION*0.01, DURATION*1.01)
+        self.ax[1].set_ylim(-0.01, max(kb.max(), kf.max())*1.05)
 
-        self.ax[2].set_xlim(-0.1, 15.1)
+        self.ax[2].set_xlim(-DURATION*0.01, DURATION*1.01)
         self.ax[2].set_ylim(min(vrb.min(), vrf.min()), 
-            max(vrb.max(), vrf.max()))  
+            max(vrb.max(), vrf.max())*1.05)  
 
-        self.ax[3].set_xlim(-0.1, 15.1)
+        self.ax[3].set_xlim(-DURATION*0.01, DURATION*1.01)
         self.ax[3].set_ylim(min(Fb.min(), Ff.min()), 
-            max(Fb.max(), Ff.max())) 
+            max(Fb.max(), Ff.max())*1.05) 
         # self.ax[3].set_ylim(min(checkb.min(), checkf.min()), 
         #     max(checkb.max(), checkf.max()))   
         # self.ax[3].set_ylim(-0.01, 0.01)   
 
-        # self.Ve_0_line.set_data(t/3600, np.ones(t.size)*self.Ve_0.value())
+        self.Ve_0_line.set_data(t/3600, np.ones(t.size)*self.Ve_0.value())
 
         self.fig.canvas.draw()
-
+        DURATION=4.5
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)

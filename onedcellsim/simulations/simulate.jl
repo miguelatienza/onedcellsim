@@ -39,7 +39,7 @@ function single_time_step(stepsize, compute_step, n_sub_steps, dtot, params, var
 end
 
 
-function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02; v_0=0.002, kf0=15, kb0=0)
+function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02, kf0=15; v_0=0.002, kb0=0)
     
     local variables, parameters, i
 
