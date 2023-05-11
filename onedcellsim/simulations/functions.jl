@@ -1,11 +1,12 @@
 using LambertW
 
 function velocities(aoverN, zetaf, zetab, Ve_0, kf, kb, k_minus, E, Lf, Lb, L0)
-    
+    ##function to update the velocities according to model equations
     local Cf, Cb, betaf, betab, vf, vb, vrf, vrb
     ##Return vf, vb, vrf. vrb
+    
     if aoverN==0
-
+        # This is the model which ignores the  force dependence of actin polymerization
         Ve_0 = Ve_0-k_minus
         vrf = (E*(Lf-L0) + zetaf*Ve_0)/(kf+zetaf)
         vf = Ve_0 - vrf
@@ -15,7 +16,7 @@ function velocities(aoverN, zetaf, zetab, Ve_0, kf, kb, k_minus, E, Lf, Lb, L0)
         #print(vf, "  ",  vrf, "  ", Ve_0, "  ", vf+vrf-Ve_0, "\n")
     #Cf=1; Cb=1; betaf=1; betab=1; vf=1 ; vb=1; vrf=1; vrb=1
     else
-
+        #Use the full model with force dependence of actin polymerization
         Cf=Ve_0*kf*zetaf/(zetaf+kf)
         Cb=Ve_0*kb*zetab/(zetab+kb)
 
@@ -40,17 +41,17 @@ function get_vc(E, Lf, Lb, zetac)
 end
 
 function etaf(alpha, c1, c2, c3, k_lim, k, vr)
-    
+    #function to calculate the noise amplitude
     local toroot, std
 
     toroot = ((c1*(k_lim-k)) + (c2*exp(abs(vr)/c3)*k))/(alpha*k_lim)            
-    std = sqrt(toroot)
+    std = sqrt(clamp(toroot, 0, Inf))
     
     return std
 end
 
 function dk_dt(c1, c2, c3, k_lim, k, k0, vr, alpha, epsilon)
-    #print([c1, c2, c3, k_lim, k, k0, vr, alpha], "sep")
+    #function to calculate the derivate of kappa
     local dkdt::Float64, noise::Float64
     
     dkdt = c1*(k_lim-(k-k0)) - c2*exp(abs(vr)/c3)*(k-k0)

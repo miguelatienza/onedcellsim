@@ -39,12 +39,13 @@ function single_time_step(stepsize, compute_step, n_sub_steps, dtot, params, var
 end
 
 
-function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02, kf0=15; v_0=0.002, kb0=0)
+function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02;kf0=15, v_0=0.002, kb0=0)
     
     local variables, parameters, i
 
     E,L0,Ve_0,k_minus,c1,c2,c3,k_max,Kk,nk,k0,zeta_max,Kzeta,nzeta,b,zeta0,alpha,aoverN,epsilon,B = params
     
+    ##If kf0 was not specified, set it to the base value of k0
     if kf0 == 0 
         kf0=k0
     end
@@ -52,17 +53,21 @@ function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02, kf0=1
         kb0=k0
     end
 
+    ##The number of intermediate computations to perform between each saved time step
     n_sub_steps = Int64(ceil(t_step/t_step_compute))
+    ##adjust to rounded integer value of n_sub_steps
     t_step_compute = t_step/n_sub_steps
     n_steps = Int(t_max/t_step)
     ts = range(0, t_max, step=t_step)
     zeros_arr = zeros(size(ts,1))
 
+    #Set the initial conditions for the position of the front, back, and nucleus
     xb=copy(zeros_arr); xb[1]=-L0 #rear in um
     xc=copy(zeros_arr); xc[1]=0
     xf=copy(zeros_arr); xf[1]=L0#front in um
     L=copy(zeros_arr); L[1]=2*L0 # Cell length in um
 
+    #set the initial conditions for the velocities of the front, back, and nucleus
     vb=ones(size(ts,1)).*v_0 #rear velpocity in um/s
     vc=copy(vb) #nucleus velocity in um/s
     vf=copy(vb) #front velocity in um/s
@@ -86,15 +91,16 @@ function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02, kf0=1
     Lf = xf-xc
     Lb=xc-xb
 
+    ##Set the parameters and variables to be passed to the single_time_step function
     parameters = [aoverN, k0, Ve_0, k_minus, E, L0, c1, c2, c3, k_lim, alpha, epsilon]
     variables = [zetaf zetab zetac kf kb Lf Lb vrf vrb xf xb xc vf vb]
     
+    #Initialised total simulated time
     dtot=0
-    #single_time_step(t_step, t_step_compute, dtot, params, variables)
 
     i=1
-    #print(variables[i,:])
-    #print(variables[i,:])
+
+    #Finally simulate and update the variables array for each time step
     for i in 1:n_steps
         #print(i)
         variables[i+1,:]= single_time_step(t_step, t_step_compute, n_sub_steps, dtot, parameters, variables[i,:])
@@ -134,7 +140,7 @@ function array_to_dict(df)
 end
 
 
-function runsims(;parameters=undef, t_max=15*3600, t_step=30, t_step_compute=0.5, delta=0, nsims=1, verbose=false, mode="array")
+function runsims(;parameters=undef, t_max=15*3600, t_step=30, t_step_compute=0.5, delta=0, kf0=15, nsims=1, verbose=false, mode="array")
    
     local t, df
  
@@ -152,14 +158,14 @@ function runsims(;parameters=undef, t_max=15*3600, t_step=30, t_step_compute=0.5
 
     """zetaf zetab zetac kf kb Lf Lb vrf vrb xf xb xc vf vb"""
     if nsims==1e90
-        t, df1 = simulate(parameters, t_max, t_step, t_step_compute, delta)
+        t, df1 = simulate(parameters, t_max, t_step, t_step_compute, delta, kf0=kf0)
         id = ones(Int, (n_points))
         df = cat(2, id, t)
         df = cat(2, df, df1)
         return df
     end
 
-    t, df1 = simulate(parameters[1,:], t_max, t_step, t_step_compute, delta)
+    t, df1 = simulate(parameters[1,:], t_max, t_step, t_step_compute, delta, kf0=kf0)
     
     n_points, n_vars = size(df1)
     df = zeros(Float64, (nsims, n_points, n_vars+2))
