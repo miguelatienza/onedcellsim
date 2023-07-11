@@ -4,5 +4,4 @@ import setuptools
 setup(name='onedcellsim',
 version='1.0',
 author='Miguel Atienza',
-packages=setuptools.find_packages())
-#packages=['simulations', 'compression'])
+packages=setuptools.find_packages(exclude=('*tests', 'testing')))
