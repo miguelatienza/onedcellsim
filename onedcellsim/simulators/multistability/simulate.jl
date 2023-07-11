@@ -1,11 +1,10 @@
 include("functions.jl")
 using ProgressBars
 
-function single_time_step(stepsize, compute_step, n_sub_steps, dtot, params, variables)#), vf, vb, vc)
+function single_time_step(stepsize, compute_step, n_sub_steps, dtot, params, variables)
     
-    #local aoverN, k0, W0, Ve_0, k_minus, E, L0, c1, c2, c3, k_lim, alpha
-    #local zetaf, zetab, zetac, kf, kb, Lf, Lb, vrf, vrb, xf, xb, xc, vf, vb
-    aoverN, k0, Ve_0, k_minus, E, L0, c1, c2, c3, k_lim, alpha, epsilon = copy(params)
+
+    aoverN, k0, Ve_0, k_minus, E, L0, c1, c2, c3, k_lim, alpha, epsilon, epsilon_l = copy(params)
     zetaf, zetab, zetac, kf, kb, Lf, Lb, vrf, vrb, xf, xb, xc, vf, vb = copy(variables)
 
    
@@ -22,11 +21,12 @@ function single_time_step(stepsize, compute_step, n_sub_steps, dtot, params, var
    
         dt = min(compute_step, stepsize-dtot)
    
+        #compute the new values of kappa, and clip them between 0.01 and k_lim
         kf = clamp(kf+dkfdt*dt, 0.01, k_lim)
         kb = clamp(kb+dkbdt*dt, 0.01, k_lim)
 
         #Compute positions
-        xf, xb, xc = solve_x(dt, xf, xb, xc, vf, vb, vc)
+        xf, xb, xc = solve_x(dt, xf, xb, xc, vf, vb, vc, epsilon_l)
         Lf = xf-xc
         Lb = xc-xb
 
@@ -39,19 +39,20 @@ function single_time_step(stepsize, compute_step, n_sub_steps, dtot, params, var
 end
 
 
-function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02;kf0=15, v_0=0.002, kb0=0)
+function simulate(params, t_max, t_step, t_step_compute=0.5, delta=0; init_vars=undef)
     
     local variables, parameters, i
 
-    E,L0,Ve_0,k_minus,c1,c2,c3,k_max,Kk,nk,k0,zeta_max,Kzeta,nzeta,b,zeta0,alpha,aoverN,epsilon,B = params
+    E,L0,Ve_0,k_minus,c1,c2,c3,k_max,Kk,nk,k0,zeta_max,Kzeta,nzeta,b,zeta0,alpha,aoverN,epsilon,B, epsilon_l = params
     
-    ##If kf0 was not specified, set it to the base value of k0
-    if kf0 == 0 
-        kf0=k0
+    c2 = c2*c1
+
+    ##If init_vars were not specified, set it to the base value of k0
+    if init_vars==undef
+        init_vars = [L0, L0, k0, k0]
     end
-    if kb0==0
-        kb0=k0
-    end
+    
+    Lf0, Lb0, kf0, kb0 = init_vars
 
     ##The number of intermediate computations to perform between each saved time step
     n_sub_steps = Int64(ceil(t_step/t_step_compute))
@@ -62,20 +63,10 @@ function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02;kf0=15
     zeros_arr = zeros(size(ts,1))
 
     #Set the initial conditions for the position of the front, back, and nucleus
-    xb=copy(zeros_arr); xb[1]=-L0 #rear in um
+    xb=copy(zeros_arr); xb[1]=-Lb0 #rear in um
     xc=copy(zeros_arr); xc[1]=0
-    xf=copy(zeros_arr); xf[1]=L0#front in um
-    L=copy(zeros_arr); L[1]=2*L0 # Cell length in um
-
-    #set the initial conditions for the velocities of the front, back, and nucleus
-    vb=ones(size(ts,1)).*v_0 #rear velpocity in um/s
-    vc=copy(vb) #nucleus velocity in um/s
-    vf=copy(vb) #front velocity in um/s
-    
-    #vrf=Ve_0 .- vf .- k_minus#; vrf[1]=Ve_0
-    #vrb=Ve_0 .+ vb .- k_minus#; vrb[1]=Ve_0
-    vrf=copy(zeros_arr)
-    vrb=copy(zeros_arr)
+    xf=copy(zeros_arr); xf[1]=Lf0#front in um
+    L=copy(zeros_arr); L[1]=Lf0+Lb0 # Cell length in um
 
     kf=copy(zeros_arr); kf[1]=kf0
     kb=copy(zeros_arr); kb[1]=kb0
@@ -87,12 +78,20 @@ function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02;kf0=15
     zetac.=zeta_nuc(b, zeta0, zeta_max, B, Kzeta, nzeta)
     k_lim = k_lim_func(k0, k_max, B, Kk, nk)
     
-
     Lf = xf-xc
     Lb=xc-xb
 
+    vf0, vb0, vrf0, vrb0 = velocities(aoverN, zetaf[1], zetab[1], Ve_0, kf[1], kb[1], k_minus, E, Lf[1], Lb[1], L0)
+    vc0=get_vc(E, Lf[1], Lb[1], zetac[1])
+
+    vf=copy(zeros_arr); vf[1]=vf0
+    vb=copy(zeros_arr); vb[1]=vb0
+    vrf=copy(zeros_arr); vrf[1]=vrf0
+    vrb=copy(zeros_arr); vrb[1]=vrb0
+    vc=copy(zeros_arr); vc[1]=vc0
+
     ##Set the parameters and variables to be passed to the single_time_step function
-    parameters = [aoverN, k0, Ve_0, k_minus, E, L0, c1, c2, c3, k_lim, alpha, epsilon]
+    parameters = [aoverN, k0, Ve_0, k_minus, E, L0, c1, c2, c3, k_lim, alpha, epsilon, epsilon_l]
     variables = [zetaf zetab zetac kf kb Lf Lb vrf vrb xf xb xc vf vb]
     
     #Initialised total simulated time
@@ -102,10 +101,12 @@ function simulate(params, t_max, t_step, t_step_compute=0.005, delta=0.02;kf0=15
 
     #Finally simulate and update the variables array for each time step
     for i in 1:n_steps
-        #print(i)
+
         variables[i+1,:]= single_time_step(t_step, t_step_compute, n_sub_steps, dtot, parameters, variables[i,:])
-        
+       
     end
+    ## Add noise to the x values
+    variables[:, 10:13] .+= randn(size(variables[:, 10:13]))*epsilon_l
 
     return Array(ts), variables
 
@@ -140,7 +141,7 @@ function array_to_dict(df)
 end
 
 
-function runsims(;parameters=undef, t_max=15*3600, t_step=30, t_step_compute=0.5, delta=0, kf0=15, nsims=1, verbose=false, mode="array")
+function runsims(;parameters=undef, init_vars=undef, t_max=15*3600, t_step=30, t_step_compute=0.5, delta=0, nsims=1, verbose=false, mode="array")
    
     local t, df
  
@@ -155,17 +156,8 @@ function runsims(;parameters=undef, t_max=15*3600, t_step=30, t_step_compute=0.5
     elseif (nsims==1) & (ndims(parameters)==1) 
         parameters = reshape(parameters, (1, size(parameters)[1]))
     end
-
-    """zetaf zetab zetac kf kb Lf Lb vrf vrb xf xb xc vf vb"""
-    if nsims==1e90
-        t, df1 = simulate(parameters, t_max, t_step, t_step_compute, delta, kf0=kf0)
-        id = ones(Int, (n_points))
-        df = cat(2, id, t)
-        df = cat(2, df, df1)
-        return df
-    end
-
-    t, df1 = simulate(parameters[1,:], t_max, t_step, t_step_compute, delta, kf0=kf0)
+    
+    t, df1 = simulate(parameters[1,:], t_max, t_step, t_step_compute, delta, init_vars=init_vars[1,:])
     
     n_points, n_vars = size(df1)
     df = zeros(Float64, (nsims, n_points, n_vars+2))
@@ -179,7 +171,7 @@ function runsims(;parameters=undef, t_max=15*3600, t_step=30, t_step_compute=0.5
 
     if verbose
         for i in ProgressBar(2:nsims)
-            t, df[i, :, 3:end]=simulate(parameters[i, :], t_max, t_step, t_step_compute, delta)
+            t, df[i, :, 3:end]=simulate(parameters[i, :], t_max, t_step, t_step_compute, delta, init_vars=init_vars[i,:])
             df[i, :, 1] .= i
             df[i, :, 2]= t
         end
@@ -190,7 +182,7 @@ function runsims(;parameters=undef, t_max=15*3600, t_step=30, t_step_compute=0.5
     end
 
     for i in 2:nsims
-        t, df[i, :, 3:end]=simulate(parameters[i, :], t_max, t_step, t_step_compute, delta)
+        t, df[i, :, 3:end]=simulate(parameters[i, :], t_max, t_step, t_step_compute, delta, init_vars=init_vars[i,:])
         df[i, :, 1] .= i
         df[i, :, 2]= t
     end

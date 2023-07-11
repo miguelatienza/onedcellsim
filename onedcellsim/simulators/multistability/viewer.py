@@ -7,7 +7,56 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from julia.api import Julia
+## import pyqtSignal
+from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QSlider, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QSizePolicy, QSpacerItem, QFileDialog, QLabel)
+
+
+from PyQt5 import QtWidgets, QtCore
+
+
+class FloatSlider(QtWidgets.QWidget):
+    valueChanged = QtCore.pyqtSignal(float)
+
+    def __init__(self, minimum, maximum, num_steps, value, label_text):
+        super().__init__()
+        self.spin_box = QtWidgets.QDoubleSpinBox()
+        ##Set the number of decimals according to the minimum value
+        self.spin_box.setDecimals(5)
+        self.spin_box.setMinimum(minimum)
+        self.spin_box.setMaximum(maximum)
+        self.spin_box.setSingleStep((maximum - minimum) / num_steps)
+        self.spin_box.setValue(value)
+
+        self.slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.slider.setMinimum(0)
+        self.slider.setMaximum(num_steps)
+        self.slider.setValue(int((value - minimum) / self.spin_box.singleStep()))
+
+        self.label = QtWidgets.QLabel(label_text)
+
+        layout = QtWidgets.QHBoxLayout()
+        layout.addWidget(self.label)
+        layout.addWidget(self.slider)
+        layout.addWidget(self.spin_box)
+        self.setLayout(layout)
+
+        self.slider.valueChanged.connect(self.update_value)
+        self.spin_box.valueChanged.connect(self.update_slider)
+
+    def update_value(self, slider_value):
+        value = self.spin_box.minimum() + (slider_value * self.spin_box.singleStep())
+        self.spin_box.setValue(value)
+        self.valueChanged.emit(value)
+
+    def update_slider(self, value):
+        slider_value = int((value - self.spin_box.minimum()) / self.spin_box.singleStep())
+        self.slider.setValue(slider_value)
+        self.valueChanged.emit(value)
+    
+    def value(self):
+        return self.spin_box.value()
+
 
 # jpath = "/home/miguel/onedcellsim/venv/julia-1.6.7/bin/julia"
 # jl = Julia(runtime=jpath, compiled_modules=False)
@@ -31,21 +80,83 @@ simulate = jl.eval(f"""
 # include("{path_to_julia_scripts}simulate.jl")
 # """)
 
-#from simulator import Simulator
+PARAMETER_NAMES = ["E", "L0", "Ve_0", "k_minus", "c_1", "c_2", "c_3", "kappa_max", "K_kappa", "n_kappa", "kappa_0", "zeta_max", "K_zeta", "n_zeta", "b", "zeta_0", "alpha", "aoverN", "epsilon", "B", "epsilon_l"]
+#DEFAULT_PARAMETER_VALUES = [3e-3, 11, 2.5e-2, 0, 1.5e-4, 0.5, 7.8e-3, 35, 35, 3, 1e-3, 1.4, 50, 4, 2, 1e-3, 4e-2, 0, 1, 30, 0]
+VAR_NAMES = ["Lf", "Lb", "kf", "kb"]
+
+PARAMETERS={
+    'E': [2.5e-3, 3e-3, 3.1e-3],
+    'L0': [10, 11, 20],
+    'Ve_0': [1.71e-2, 2.5e-2, 3.5e-2],
+    'k_minus': [0, 0, 0],
+    'c_1': [1e-4, 1.5e-4, 5e-4],
+    'c_2': [0.3, 0.5, 0.6],
+    'c_3': [3e-3, 7.8e-3, 1.5e-2],
+    'kappa_max': [35, 35, 35],
+    'K_kappa': [1, 35, 40],
+    'n_kappa': [1, 3, 7.6],
+    'kappa_0': [0, 1e-3, 1e-2],
+    'zeta_max': [1, 1.4, 40],
+    'K_zeta': [10, 50, 60],
+    'n_zeta': [1, 4, 5.8],
+    'b': [2, 2, 3],
+    'zeta_0': [0, 1e-3, 1e-1],
+    'alpha': [4e-2, 4e-2, 4e-2],
+    'aoverN': [0, 0, 0],
+    'epsilon': [0, 1, 3],
+    'B': [5, 30, 100],
+    'epsilon_l' : [0, 2, 3],
+    }
+
+DEFAULT_PARAMETER_VALUES = [PARAMETER[1] for PARAMETER in PARAMETERS.values()]
+
+variable_parameters = {
+    #"E": [2e-3, 3e-3, 4e-3],
+    "L0": [1, 11, 40],
+    "Ve_0": [1e-2, 2.5e-2, 3.5e-2],
+    "c_1": [1e-5, 1.5e-4, 3e-4],
+    "c_2": [0.2, 0.5, 0.9],
+    "c_3": [7e-3, 1e-2, 2e-2],
+    "kappa_max": [1, 35, 80],
+    "zeta_max": [5, 6, 20],
+    "b": [1, 2, 10],
+    #"B": [10, 25, 40],
+    "epsilon": [0,0.5,5],
+    'epsilon_l' : [0, 2, 3]
+}
+
+variable_parameter_indices = [PARAMETER_NAMES.index(key) for key in variable_parameters.keys()]
+
+
+init_var_names = {
+    "Lf": [10, 20, 50],
+    "Lb": [10, 20, 50],
+    "kf": [0.1, 0.1*variable_parameters["kappa_max"][2], 0.6*variable_parameters["kappa_max"][2]],
+    "kb": [0.1, 0.1*variable_parameters["kappa_max"][2], 0.6*variable_parameters["kappa_max"][2]]
+}
 
 #simulator = Simulator()
 DURATION=5
-def run_simulation(params):
+def run_simulation(full_params, init_vars=None):
     
-    full_params = np.array(params)
-    #print(full_params)
+
     DURATION=5
-    t_max, t_step = DURATION*60*60,30
+    t_max, t_step = 7*60*60,120
     t_step_compute=0.5
-    #params, particle_id, verbose, t_max, t_step, t_step_compute = args
-    
-    #np.random.seed(int(time.time())
-    variables = simulate(parameters=full_params, t_max=t_max, t_step=t_step, t_step_compute=t_step_compute, delta=0, kf0=10)[0]
+    L0, k0, kmax = full_params[1], full_params[10], full_params[7]
+    # sample initial conditions from uniform distribution
+    ivs = init_vars.copy()
+ 
+    if init_vars is None:
+        vars_0 = np.array([L0, L0, k0, k0]).T
+        vars_delta = np.array([4*L0, 4*L0, 0.6*kmax, 0.6*kmax]).T
+        #print(vars_delta)
+        init_vars = vars_0 + np.random.uniform(low=0, high=1, size=(1, 4)) * vars_delta
+
+    #print(full_params.shape)
+    variables = simulate(parameters=full_params, t_max=t_max, t_step=t_step, t_step_compute=t_step_compute, delta=0, init_vars=init_vars, nsims=1)
+    #print(variables.shape)
+    variables = variables[0, :, :]
     #print(variables.shape)
     #print(variables)
     df = pd.DataFrame(columns=['t', 'xc', 'xb', 'xf', 'kf', 'kb', 'vrf', 'vrb'])
@@ -128,104 +239,36 @@ class SimulationApp(QtWidgets.QMainWindow):
 
 
     def create_widgets(self):
-    #     self.parameters={
-    #     'E': [7e-5, 5.5e-4, 3e-3],
-    #     'L_0': [10, 30, 50],
-    #     'V_e^0': [1e-2, 1.9e-2, 1.1e-1],
-    #     'zeta_0': [0, 5e-2, 1e-1],
-    #     'zeta^{max}': [1, 19, 40],
-    #     'b': [3, 3, 3],
-    #     'K_zeta': [10, 14.3, 40],
-    #     'n_zeta': [1, 1.01, 5.8],
-    #     'B': [5, 37.5, 70],
-    #     'kappa_0': [1e-2, 1e-2, 1e-2],
-    #     'kappa^{max}': [35, 50, 70],
-    #     'K_kappa': [1, 8.9, 40],
-    #     'n_kappa': [1, 1.3, 7.6],
-    #     'c_1': [1.5e-4, 1.5e-4, 1.5e-4],
-    #     'c_2': [7.5e-5, 7.5e-5, 7.5e-5],
-    #     'c_3': [7.8e-3, 7.8e-3, 7.8e-3],
-    #     'epsilon': [0, 1, 3]
-    # }
+        self.parameters_sliders = []
+        for i, key in enumerate(variable_parameters.keys()):
 
-    #     self.parameters={
-    #     'E': [7e-5, 3e-3, 5e-3],
-    #     'L_0': [10, 30, 50],
-    #     'V_e^0': [1e-2, 1.45e-2, 1.1e-1],
-    #     'zeta_0': [0, 5e-2, 1e-1],
-    #     'zeta^{max}': [1, 1.5, 40],
-    #     'b': [3, 3, 3],
-    #     'K_zeta': [10, 32.7, 40],
-    #     'n_zeta': [1, 1.01, 5.8],
-    #     'B': [5, 37.5, 70],
-    #     'kappa_0': [1e-2, 1e-2, 1e-2],
-    #     'kappa^{max}': [35, 50, 70],
-    #     'K_kappa': [1, 1.5, 40],
-    #     'n_kappa': [1, 1.3, 7.6],
-    #     'c_1': [1e-4, 1.5e-4, 5e-4],
-    #     'c_2': [3e-5, 7.5e-5, 9.9e-5],
-    #     'c_3': [3e-3, 9.9e-3, 1.5e-2],
-    #     'epsilon': [0, 1, 3]
-    # }
-        
+            #create a floatslider
+            p = FloatSlider(variable_parameters[key][0], variable_parameters[key][2], 100, variable_parameters[key][1], key)
+            # # add label
+            p.slider.setToolTip(key)
+            self.parameters_sliders.append(p)
 
-        self.parameters={
-        'E': [3e-3, 3e-3, 5e-3],
-        'L_0': [10, 10, 50],
-        'V_e^0': [1e-2, 2.5e-2, 1.1e-1],
-        'zeta_0': [0, 5e-2, 1e-1],
-        'zeta^{max}': [1, 1.4, 40],
-        'b': [3, 2, 3],
-        'K_zeta': [10, 50, 60],
-        'n_zeta': [1, 4, 5.8],
-        'B': [5, 37.5, 100],
-        'kappa_0': [1e-2, 1e-2, 1e-2],
-        'kappa^{max}': [35, 50, 70],
-        'K_kappa': [1, 35, 40],
-        'n_kappa': [1, 3, 7.6],
-        'c_1': [1e-4, 1.5e-4, 5e-4],
-        'c_2': [3e-5, 7.5e-5, 9.9e-5],
-        'c_3': [3e-3, 7.8e-3, 1.5e-2],
-        'epsilon': [0, 1, 3]
-    }
-        # Create sliders for the parameters
-        self.E = QtWidgets.QDoubleSpinBox()
-        self.L0 = QtWidgets.QDoubleSpinBox()
-        self.Ve_0 = QtWidgets.QDoubleSpinBox()
-        self.zeta0 = QtWidgets.QDoubleSpinBox()
-        self.zeta_max = QtWidgets.QDoubleSpinBox()
-        self.b = QtWidgets.QDoubleSpinBox()
-        self.K_zeta = QtWidgets.QDoubleSpinBox()
-        self.n_zeta = QtWidgets.QDoubleSpinBox()
-        self.B = QtWidgets.QDoubleSpinBox()
-        self.k0 = QtWidgets.QDoubleSpinBox()
-        self.kappa_max = QtWidgets.QDoubleSpinBox()
-        self.K_kappa = QtWidgets.QDoubleSpinBox()
-        self.n_kappa = QtWidgets.QDoubleSpinBox()
-        self.c1 = QtWidgets.QDoubleSpinBox()
-        self.c2 = QtWidgets.QDoubleSpinBox()
-        self.c3 = QtWidgets.QDoubleSpinBox()
-        self.epsilon = QtWidgets.QDoubleSpinBox()
+        self.init_conditions_sliders = []
+        # create sliders for the initial conditions
+        for i, key in enumerate(init_var_names.keys()):
+            
+            iv = FloatSlider(init_var_names[key][0], init_var_names[key][2], 100, init_var_names[key][1], key)
 
-        self.parameters_sliders = [self.E, self.L0, self.Ve_0, self.zeta0, self.zeta_max, self.b, self.K_zeta, self.n_zeta, self.B, self.k0, self.kappa_max, self.K_kappa, self.n_kappa, self.c1, self.c2, self.c3, self.epsilon]
+            # iv.setMinimum(init_var_names[key][0])
+            # iv.setMaximum(init_var_names[key][2])
+            # iv.setSingleStep((init_var_names[key][2] - init_var_names[key][0]) // 1000)
+            # iv.setValue(init_var_names[key][1])
+            # iv.setTickInterval(1)  # Optional: Set tick interval if desired
+            # # add label
+            iv.slider.setToolTip(key)
+            self.init_conditions_sliders.append(iv)
 
-        for i, key in enumerate(self.parameters.keys()):
-            self.parameters_sliders[i].setMinimum(self.parameters[key][0])
-            self.parameters_sliders[i].setMaximum(self.parameters[key][2])
-            self.parameters_sliders[i].setSingleStep((self.parameters[key][2]-self.parameters[key][0])/1000)
-            self.parameters_sliders[i].setValue(self.parameters[key][1])
-            n_decimals = int(np.log10(1/self.parameters[key][1]))
-            self.parameters_sliders[i].setDecimals(n_decimals+3)
+        # Update the simulation when the sliders are moved
+        for p in self.parameters_sliders:
+            p.valueChanged.connect(self.update_simulation)
 
-        #Update the simulation when the sliders are moved
-        for i, key in enumerate(self.parameters.keys()):
-            self.parameters_sliders[i].valueChanged.connect(self.update_simulation)
-
-
-        ##Add labels to the widgets
-        for i, key in enumerate(self.parameters.keys()):
-            self.parameters_sliders[i].setPrefix(key + ": ")
-            self.parameters_sliders[i].setToolTip(key)
+        for iv in self.init_conditions_sliders:
+            iv.valueChanged.connect(self.update_simulation)
 
 
     def initUI(self):
@@ -236,71 +279,53 @@ class SimulationApp(QtWidgets.QMainWindow):
         main_layout = QtWidgets.QHBoxLayout()
         
         # Create a group box for sliders
+        self.full_sliders_box = QtWidgets.QVBoxLayout()
         self.sliders_group_box = QtWidgets.QGroupBox("Parameters")
-        sliders_layout = QtWidgets.QGridLayout()
-        #self.screen_size = QtWidgets.QDesktopWidget().availableGeometry().size()
+        sliders_layout = QtWidgets.QVBoxLayout()  # Use QVBoxLayout for vertical layout
+        self.init_conditions_sliders_group_box = QtWidgets.QGroupBox("Initial conditions")
+        init_conditions_sliders_layout = QtWidgets.QVBoxLayout()  # Use QVBoxLayout for vertical layout
 
-        #sliders_layout.setSpacing(0.2*self.screen_size.width())
-
+        # Add sliders to the layout
+        for p in self.parameters_sliders:
+            sliders_layout.addWidget(p)
         
-        # Add the sliders to the layout
-        for i, key in enumerate(self.parameters.keys()):
-            sliders_layout.addWidget(self.parameters_sliders[i], i, 0)
+        # Add initial conditions sliders to the layout
+        for iv in self.init_conditions_sliders:
+            init_conditions_sliders_layout.addWidget(iv)
 
-        
-        # Set the layout for the group box
+        # Set the layout for the group boxes
         self.sliders_group_box.setLayout(sliders_layout)
+        self.init_conditions_sliders_group_box.setLayout(init_conditions_sliders_layout)
         
+        self.full_sliders_box.addWidget(self.sliders_group_box)
+        self.full_sliders_box.addWidget(self.init_conditions_sliders_group_box)
+
         # Add the group box to the main layout
-        main_layout.addWidget(self.sliders_group_box)
+        main_layout.addLayout(self.full_sliders_box)
         
         self.canvas = FigureCanvas(self.fig)
         self.plot_layout = QtWidgets.QVBoxLayout()
         self.plot_layout.addWidget(self.fig.canvas)
         main_layout.addLayout(self.plot_layout)
 
-        main_layout.setStretchFactor(sliders_layout, 20)
+        main_layout.setStretchFactor(self.full_sliders_box, 20)  # Adjust the stretch factor
         main_layout.setStretchFactor(self.plot_layout, 80)
         self.central_widget.setLayout(main_layout)
-  
 
     def update_simulation(self):
-        E = self.E.value()
-        L0 = self.L0.value()
-        Ve_0 = self.Ve_0.value()
-        k_minus = 0# self.k_minus.value()
-        c1 = self.c1.value()
-        c2 = self.c2.value()
-        c3 = self.c3.value()
-        k_max = self.kappa_max.value()
-        Kk = self.K_kappa.value()
-        nk = self.n_kappa.value()
-        k0 = self.k0.value()
-        zeta_max = self.zeta_max.value()
-        Kzeta = self.K_zeta.value()
-        nzeta = self.n_zeta.value()
-        b = self.b.value()
-        zeta0 = self.zeta0.value()
-        aoverN = 1
-        epsilon = self.epsilon.value()
-        B = self.B.value()
+        
+        params = [p.value() for p in self.parameters_sliders]
 
+        full_params = np.array(DEFAULT_PARAMETER_VALUES)
+        #full_params = np.array([PARAMETER[1] for PARAMETER in PARAMETERS.values()])
+        full_params[variable_parameter_indices] = params
 
-        params = [E, L0, Ve_0, k_minus, c1, c2, c3, k_max, Kk, nk, k0, zeta_max, Kzeta, nzeta, b, zeta0, 4e-2, aoverN, epsilon, B]
-        obs = run_simulation(params)
+        ivs = np.array([iv.value() for iv in self.init_conditions_sliders]).reshape(1,4)
+
+        E, L0, Ve_0, k_minus, c1, c2, c3, k_max, Kk, nk, k0, zeta_max, Kzeta, nzeta, b, zeta0, alpha, aoverN, epsilon, B, epsilon_l = full_params
+        obs = run_simulation(full_params, init_vars=ivs)
         t, front, rear, nucleus, kf, kb, vrf, vrb, vf, vb = obs.t.values, obs.xf.values, obs.xb.values, obs.xc.values, obs.kf.values, obs.kb.values, obs.vrf.values, obs.vrb.values, obs.vf, obs.vb
 
-        # locator = t>=(2*3600)
-        # t=t[locator]-(2*3600)
-        # front = front[locator]
-        # rear = rear[locator]
-        # nucleus=nucleus[locator]
-        # vrf=vrf[locator]
-        # vrb=vrb[locator]
-        # kf=kf[locator]
-        # kb=kb[locator]
-        # vf = vf[locator]
-        # vb=vb[locator]
 
         Ff = vrf*kf 
         Fb = vrb*kb 
@@ -309,7 +334,7 @@ class SimulationApp(QtWidgets.QMainWindow):
         self.line_1.set_data(t/3600, front)
         self.line_2.set_data(t/3600, nucleus)
         self.line_3.set_data(t/3600, rear)
-
+       
         k_lim = k0 + (k_max * B**nk/(Kk**nk + B**nk))
         kfeq = c1*k_lim/(c1 + c2*np.exp(np.abs(vrf)/c3))
         kbeq = c1*k_lim/(c1 + c2*np.exp(np.abs(vrb)/c3))
@@ -335,7 +360,8 @@ class SimulationApp(QtWidgets.QMainWindow):
         DURATION=5
 
         self.ax[0].set_xlim(-DURATION*0.01, DURATION*1.01)
-        self.ax[0].set_ylim(rear.min()-10, front.max()+10)
+        vmax=72
+        self.ax[0].set_ylim(-vmax*DURATION, vmax*DURATION)
 
         self.ax[1].set_xlim(-DURATION*0.01, DURATION*1.01)
         self.ax[1].set_ylim(-0.01, max(kb.max(), kf.max())*1.05)
@@ -351,7 +377,7 @@ class SimulationApp(QtWidgets.QMainWindow):
         #     max(checkb.max(), checkf.max()))   
         # self.ax[3].set_ylim(-0.01, 0.01)   
 
-        self.Ve_0_line.set_data(t/3600, np.ones(t.size)*self.Ve_0.value())
+        self.Ve_0_line.set_data(t/3600, np.ones(t.size)*Ve_0)
 
         self.fig.canvas.draw()
         DURATION=5
@@ -361,3 +387,4 @@ if __name__ == '__main__':
     main_window = SimulationApp()
     main_window.show()
     sys.exit(app.exec_())
+

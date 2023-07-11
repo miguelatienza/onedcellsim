@@ -3,8 +3,8 @@ using LambertW
 function velocities(aoverN, zetaf, zetab, Ve_0, kf, kb, k_minus, E, Lf, Lb, L0)
     ##function to update the velocities according to model equations
     local Cf, Cb, betaf, betab, vf, vb, vrf, vrb
-    ##Return vf, vb, vrf. vrb
-    
+    ##Return vf, vb, vrf, vrb
+    aoverN=0
     if aoverN==0
         # This is the model which ignores the  force dependence of actin polymerization
         Ve_0 = Ve_0-k_minus
@@ -13,8 +13,7 @@ function velocities(aoverN, zetaf, zetab, Ve_0, kf, kb, k_minus, E, Lf, Lb, L0)
 
         vrb = (E*(Lb-L0) + zetab*Ve_0)/(kb+zetab)
         vb = vrb -Ve_0
-        #print(vf, "  ",  vrf, "  ", Ve_0, "  ", vf+vrf-Ve_0, "\n")
-    #Cf=1; Cb=1; betaf=1; betab=1; vf=1 ; vb=1; vrf=1; vrb=1
+        
     else
         #Use the full model with force dependence of actin polymerization
         Cf=Ve_0*kf*zetaf/(zetaf+kf)
@@ -55,23 +54,35 @@ function dk_dt(c1, c2, c3, k_lim, k, k0, vr, alpha, epsilon)
     local dkdt::Float64, noise::Float64
     
     dkdt = c1*(k_lim-(k-k0)) - c2*exp(abs(vr)/c3)*(k-k0)
+    
     noise = epsilon*randn()*etaf(alpha, c1, c2, c3, k_lim, k, vr)
     
     return dkdt + noise
 end
 
-function solve_x(t_step, xf, xb, xc, vf, vb, vc)
+function solve_x(t_step, xf, xb, xc, vf, vb, vc, epsilon_l)
     
-    local x_step
-    x_step = t_step*vf
-    xf+=x_step
+    local x_step_f, x_step_b, x_step_c
+    #noise=t_step*epsilon_l*0
+    #print(vf, " ", t_step, " ", randn(), "\n")
+    
+    # x_step_f = clamp((t_step*vf)+(randn()*noise), (xc-xf)*0.45, Inf)
+    # x_step_b = clamp((t_step*vb)+(randn()*noise), -Inf, (xc-xb)*0.45)
+    # x_step_c = clamp((t_step*vc)+(randn()*noise), (xb-xc)*0.45, (xf-xc)*0.45)
+    x_step_f = t_step*vf
+    x_step_b = t_step*vb
+    x_step_c = t_step*vc
 
-    x_step = t_step*vb
-    xb+=x_step
+   
+    # x_step_b = t_step*vb*(1+ clamp(randn()*3, -Inf, xc-xb*0.5))
+    # x_step_c = t_step*vc*(1+ clamp(randn()*3, xb-xc*0.5, xf-xc*0.5))
 
-    x_step = t_step*vc
-    xc+=x_step
+    xf+=x_step_f
 
+    xb+=x_step_b
+
+    xc+=x_step_c
+    
     return xf, xb, xc
 end
 

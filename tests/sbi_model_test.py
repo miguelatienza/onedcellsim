@@ -13,7 +13,16 @@ def test_model():
     
     assert(len(model.default_parameter_values.shape)==1)
     assert(isinstance(model.default_parameter_values, np.ndarray))
-    
+
+def test_model_with_wrong_paramenter_names():
+
+    variable_parameter_names = ["E", "Ve1"]
+
+    with pytest.raises(ValueError):
+        prior_min = [1e-3, 1e-2]
+        prior_max = [8e-3, 8e-2]
+        model = Model(variable_parameter_names, prior_min, prior_max)
+
 def test_existing_data_dir():
 
     try: 

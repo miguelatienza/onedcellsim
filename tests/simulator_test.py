@@ -1,4 +1,4 @@
-from onedcellsim.simulations import simulator
+from onedcellsim.simulators.multistability import simulator
 import pytest
 import numpy as np
 import time

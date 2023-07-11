@@ -1,5 +1,5 @@
 from onedcellsim.compression import compress
-from onedcellsim.simulations import simulator
+from onedcellsim.simulators.multistability import simulator
 
 sim = simulator.Simulator()
 

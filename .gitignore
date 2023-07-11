@@ -13,3 +13,5 @@ __pycache__/
 onedcellsim.egg-info/
 **/data/
 **/drafts/
+**/compression/.ipynb_checkpoints/
+**/compression/*.ipynb

@@ -1,0 +1,100 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module onedcellsim.sbi.model</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong><a href="onedcellsim.html"><font color="#ffffff">onedcellsim</font></a>.<a href="onedcellsim.sbi.html"><font color="#ffffff">sbi</font></a>.model</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/project/ls-raedler/software/onedcellsim/onedcellsim/sbi/model.py">/project/ls-raedler/software/onedcellsim/onedcellsim/sbi/model.py</a></font></td></tr></table>
+    <p><tt>##&nbsp;class&nbsp;model&nbsp;for&nbsp;SBI</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="onedcellsim.compression.compress.html">onedcellsim.compression.compress</a><br>
+<a href="numpy.html">numpy</a><br>
+</td><td width="25%" valign=top><a href="os.html">os</a><br>
+<a href="pandas.html">pandas</a><br>
+</td><td width="25%" valign=top><a href="torch.html">torch</a><br>
+<a href="sbi.utils.html">sbi.utils</a><br>
+</td><td width="25%" valign=top></td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ee77aa">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Classes</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#ee77aa"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl>
+<dt><font face="helvetica, arial"><a href="builtins.html#object">builtins.object</a>
+</font></dt><dd>
+<dl>
+<dt><font face="helvetica, arial"><a href="onedcellsim.sbi.model.html#Model">Model</a>
+</font></dt></dl>
+</dd>
+</dl>
+ <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Model">class <strong>Model</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Model">Model</a>(simulator,&nbsp;variable_parameter_names,&nbsp;prior_min,&nbsp;prior_max,&nbsp;compressor=None,&nbsp;working_dir='./',&nbsp;device='cpu',&nbsp;default_parameters=None)<br>
+&nbsp;<br>
+<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Model-__init__"><strong>__init__</strong></a>(self, simulator, variable_parameter_names, prior_min, prior_max, compressor=None, working_dir='./', device='cpu', default_parameters=None)</dt><dd><tt>Class&nbsp;for&nbsp;training&nbsp;an&nbsp;SBI&nbsp;posterior&nbsp;for&nbsp;a&nbsp;simulator.&nbsp;The&nbsp;simulator&nbsp;is&nbsp;defined&nbsp;in&nbsp;the&nbsp;Simulator&nbsp;class.&nbsp;This&nbsp;class&nbsp;allows&nbsp;for&nbsp;the&nbsp;user&nbsp;to&nbsp;specify&nbsp;which&nbsp;parameters&nbsp;are&nbsp;variable&nbsp;and&nbsp;which&nbsp;are&nbsp;fixed,&nbsp;and&nbsp;to&nbsp;specify&nbsp;the&nbsp;prior&nbsp;ranges&nbsp;for&nbsp;the&nbsp;variable&nbsp;parameters.&nbsp;<br>
+&nbsp;<br>
+Args:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;simulator&nbsp;(Simulator):&nbsp;Simulator&nbsp;class&nbsp;for&nbsp;the&nbsp;model.&nbsp;it&nbsp;must&nbsp;contain&nbsp;a&nbsp;method&nbsp;called&nbsp;simulate&nbsp;that&nbsp;takes&nbsp;a&nbsp;parameter&nbsp;set&nbsp;and&nbsp;returns&nbsp;a&nbsp;simulation&nbsp;output.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;variable_parameter_names&nbsp;(_type_):&nbsp;Names&nbsp;of&nbsp;the&nbsp;parameters&nbsp;that&nbsp;are&nbsp;variable.&nbsp;Must&nbsp;be&nbsp;a&nbsp;subset&nbsp;of&nbsp;the&nbsp;parameters&nbsp;in&nbsp;the&nbsp;simulator.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prior_min&nbsp;(_type_):&nbsp;The&nbsp;minimum&nbsp;value&nbsp;of&nbsp;the&nbsp;prior&nbsp;for&nbsp;the&nbsp;variable&nbsp;parameters.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;prior_max&nbsp;(_type_):&nbsp;The&nbsp;maximum&nbsp;value&nbsp;of&nbsp;the&nbsp;prior&nbsp;for&nbsp;the&nbsp;variable&nbsp;parameters.<br>
+&nbsp;&nbsp;&nbsp;&nbsp;compressor&nbsp;(_type_,&nbsp;optional):&nbsp;The&nbsp;compressor&nbsp;to&nbsp;use&nbsp;for&nbsp;training&nbsp;the&nbsp;SBI&nbsp;posterior.&nbsp;The&nbsp;simulations&nbsp;are&nbsp;compressed&nbsp;down&nbsp;to&nbsp;a&nbsp;lower&nbsp;dimensional&nbsp;feature&nbsp;space&nbsp;by&nbsp;the&nbsp;compressor.&nbsp;The&nbsp;lower-dimensional&nbsp;output&nbsp;is&nbsp;used&nbsp;for&nbsp;training&nbsp;the&nbsp;posterior.&nbsp;If&nbsp;not&nbsp;None,&nbsp;it&nbsp;should&nbsp;contain&nbsp;the&nbsp;method&nbsp;compress,&nbsp;and&nbsp;should&nbsp;be&nbsp;compatible&nbsp;with&nbsp;the&nbsp;output&nbsp;of&nbsp;the&nbsp;simulator.&nbsp;Defaults&nbsp;to&nbsp;None.<br>
+&nbsp;<br>
+Raises:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;ValueError:&nbsp;_description_</tt></dd></dl>
+
+<dl><dt><a name="Model-batched_simulation_wrapper_for_sbi"><strong>batched_simulation_wrapper_for_sbi</strong></a>(self, n_sims, data_dir='data', save=True, progress_bar=True, max_batch_size=500)</dt></dl>
+
+<dl><dt><a name="Model-build_full_parameter_set"><strong>build_full_parameter_set</strong></a>(self, variable_parameter_set)</dt></dl>
+
+<dl><dt><a name="Model-restrict_prior"><strong>restrict_prior</strong></a>(self, nsims=500)</dt></dl>
+
+<dl><dt><a name="Model-sample"><strong>sample</strong></a>(self, n_sets)</dt></dl>
+
+<dl><dt><a name="Model-save"><strong>save</strong></a>(self, model_name='model.sbi')</dt></dl>
+
+<dl><dt><a name="Model-simulation_wrapper"><strong>simulation_wrapper</strong></a>(self, parameter_set=None, n_sims=1, progress_bar=True)</dt></dl>
+
+<dl><dt><a name="Model-simulation_wrapper_for_sbi"><strong>simulation_wrapper_for_sbi</strong></a>(self, n_sims, data_dir='data', save=True, progress_bar=True, max_batch_size=500, convstats=True)</dt></dl>
+
+<dl><dt><a name="Model-train"><strong>train</strong></a>(self, batch_size=50)</dt></dl>
+
+<dl><dt><a name="Model-train_conv_net"><strong>train_conv_net</strong></a>(self, batch_size=50)</dt></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#55aa55">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Data</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#55aa55"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><strong>SIMDIR</strong> = '/project/ls-raedler/software/onedcellsim/onedcellsim/sbi/../simulations'<br>
+<strong>VARNAMES</strong> = ['zetaf', 'zetab', 'zetac', 'kf', 'kb', 'Lf', 'Lb', 'vrf', 'vrb', 'xf', 'xb', 'xc', 'vf', 'vb']</td></tr></table>
+</body></html>

@@ -127,7 +127,7 @@ class AEconv(nn.Module):
         return (x[batch_size*i: np.clip(int(batch_size*(i+1)),0, N)] for i in range(n_batches))
         
     
-    def train_____(self, X, input_size, val_frac=0.1, batch_size=1000, n_epochs=1000):
+    def train_(self, X, input_size, val_frac=0.1, batch_size=1000, n_epochs=1000):
     
         losses=[]
         val_losses=[]

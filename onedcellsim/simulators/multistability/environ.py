@@ -1,0 +1,1 @@
+JULIA_PATH = '/project/ag-moonraedler/MAtienza/cellsbi/envs/sbi/julia-1.6.7/bin/julia'

@@ -3,7 +3,7 @@
 import matplotlib.pyplot as plt
 import ipywidgets as widgets
 from IPython import display
-from .simulations.simulator import Simulator
+from .simulators.multistability.simulator import Simulator
 
 class Viewer:
 
