@@ -29,16 +29,17 @@ PARAMETERS={
     'epsilon': [0, 1, 3],
     'B': [5, 30, 100],
     'epsilon_l' : [0, 0.2, 0.3],
+    'gamma': [0, 0.5, 1],
     }
 
 
 #PARAMETER_NAMES = ["E", "L0", "Ve_0", "k_minus", "c1", "c2", "c3", "k_max", "Kk", "nk", "k0", "zeta_max", "Kzeta", "nzeta", "b", "zeta0", "alpha", "aoverN", "epsilon", "B"]
-PARAMETER_NAMES = ['E', 'L0', 'Ve_0', 'k_minus', 'c_1', 'c_2', 'c_3', 'kappa_max', 'K_kappa', 'n_kappa', 'kappa_0', 'zeta_max', 'K_zeta', 'n_zeta', 'b', 'zeta_0', 'alpha', 'aoverN', 'epsilon', 'B', 'epsilon_l']
+PARAMETER_NAMES = ['E', 'L0', 'Ve_0', 'k_minus', 'c_1', 'c_2', 'c_3', 'kappa_max', 'K_kappa', 'n_kappa', 'kappa_0', 'zeta_max', 'K_zeta', 'n_zeta', 'b', 'zeta_0', 'alpha', 'aoverN', 'epsilon', 'B', 'epsilon_l', 'gamma']
 VAR_NAMES = ["Lf", "Lb", "kf", "kb"]
 
 ##Defaults to no force dependence on retrograde flow (aoverN=0)
 #DEFAULT_PARAMETER_VALUES = [3e-3, 10, 3e-2, 0, 1.5e-4, 0.5, 7.8e-3, 35, 35, 3, 1e-2, 1.4, 50, 4, 3, 1e-1, 4e-2, 0, 0, 30]
-DEFAULT_PARAMETER_VALUES = [3e-3, 11, 2.5e-2, 0, 1.5e-4, 0.5, 7.8e-3, 35, 35, 3, 1e-3, 1.4, 50, 4, 2, 1e-3, 4e-2, 0, 0, 30, 0]
+DEFAULT_PARAMETER_VALUES = [3e-3, 11, 2.5e-2, 0, 1.5e-4, 0.5, 7.8e-3, 35, 35, 3, 1e-3, 1.4, 50, 4, 2, 1e-3, 4e-2, 0, 0, 30, 0, 0.5]
 
 class Simulator:
     """

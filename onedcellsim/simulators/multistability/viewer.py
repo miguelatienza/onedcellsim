@@ -80,8 +80,8 @@ simulate = jl.eval(f"""
 # include("{path_to_julia_scripts}simulate.jl")
 # """)
 
-PARAMETER_NAMES = ["E", "L0", "Ve_0", "k_minus", "c_1", "c_2", "c_3", "kappa_max", "K_kappa", "n_kappa", "kappa_0", "zeta_max", "K_zeta", "n_zeta", "b", "zeta_0", "alpha", "aoverN", "epsilon", "B", "epsilon_l"]
-#DEFAULT_PARAMETER_VALUES = [3e-3, 11, 2.5e-2, 0, 1.5e-4, 0.5, 7.8e-3, 35, 35, 3, 1e-3, 1.4, 50, 4, 2, 1e-3, 4e-2, 0, 1, 30, 0]
+# PARAMETER_NAMES = ["E", "L0", "Ve_0", "k_minus", "c_1", "c_2", "c_3", "kappa_max", "K_kappa", "n_kappa", "kappa_0", "zeta_max", "K_zeta", "n_zeta", "b", "zeta_0", "alpha", "aoverN", "epsilon", "B", "epsilon_l", "gamma"]
+
 VAR_NAMES = ["Lf", "Lb", "kf", "kb"]
 
 PARAMETERS={
@@ -106,9 +106,11 @@ PARAMETERS={
     'epsilon': [0, 1, 3],
     'B': [5, 30, 100],
     'epsilon_l' : [0, 2, 3],
+    'gamma': [0, 0.5, 1],
     }
 
 DEFAULT_PARAMETER_VALUES = [PARAMETER[1] for PARAMETER in PARAMETERS.values()]
+PARAMETER_NAMES = list(PARAMETERS.keys())
 
 variable_parameters = {
     #"E": [2e-3, 3e-3, 4e-3],
@@ -122,7 +124,8 @@ variable_parameters = {
     "b": [1, 2, 10],
     #"B": [10, 25, 40],
     "epsilon": [0,0.5,5],
-    'epsilon_l' : [0, 2, 3]
+    'epsilon_l' : [0, 2, 3],
+    'gamma': [0, 0.5, 1],
 }
 
 variable_parameter_indices = [PARAMETER_NAMES.index(key) for key in variable_parameters.keys()]
@@ -322,7 +325,7 @@ class SimulationApp(QtWidgets.QMainWindow):
 
         ivs = np.array([iv.value() for iv in self.init_conditions_sliders]).reshape(1,4)
 
-        E, L0, Ve_0, k_minus, c1, c2, c3, k_max, Kk, nk, k0, zeta_max, Kzeta, nzeta, b, zeta0, alpha, aoverN, epsilon, B, epsilon_l = full_params
+        E, L0, Ve_0, k_minus, c1, c2, c3, k_max, Kk, nk, k0, zeta_max, Kzeta, nzeta, b, zeta0, alpha, aoverN, epsilon, B, epsilon_l, gamma = full_params
         obs = run_simulation(full_params, init_vars=ivs)
         t, front, rear, nucleus, kf, kb, vrf, vrb, vf, vb = obs.t.values, obs.xf.values, obs.xb.values, obs.xc.values, obs.kf.values, obs.kb.values, obs.vrf.values, obs.vrb.values, obs.vf, obs.vb
 

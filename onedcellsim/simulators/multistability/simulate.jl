@@ -4,7 +4,7 @@ using ProgressBars
 function single_time_step(stepsize, compute_step, n_sub_steps, dtot, params, variables)
     
 
-    aoverN, k0, Ve_0, k_minus, E, L0, c1, c2, c3, k_lim, alpha, epsilon, epsilon_l = copy(params)
+    aoverN, k0, Ve_0, k_minus, E, L0, c1, c2, c3, k_lim, alpha, epsilon, epsilon_l, gamma = copy(params)
     zetaf, zetab, zetac, kf, kb, Lf, Lb, vrf, vrb, xf, xb, xc, vf, vb = copy(variables)
 
    
@@ -43,17 +43,24 @@ function simulate(params, t_max, t_step, t_step_compute=0.5, delta=0; init_vars=
     
     local variables, parameters, i
 
-    E,L0,Ve_0,k_minus,c1,c2,c3,k_max,Kk,nk,k0,zeta_max,Kzeta,nzeta,b,zeta0,alpha,aoverN,epsilon,B, epsilon_l = params
+    E,L0,Ve_0,k_minus,c1,c2,c3,k_max,Kk,nk,k0,zeta_max,Kzeta,nzeta,b,zeta0,alpha,aoverN,epsilon,B, epsilon_l, gamma= params
     
     c2 = c2*c1
 
     ##If init_vars were not specified, set it to the base value of k0
+    ##else use sampled values of kf0, kb0 and gamma (polarity) to calculate the initial values of kf and kb
     if init_vars==undef
         init_vars = [L0, L0, k0, k0]
+    else
+        Lf0, Lb0, kf0, kb0 = init_vars
+    #print("kf0: ", kf0, " kb0: ", kb0, " gamma: ", gamma, "\n")
     end
-    
-    Lf0, Lb0, kf0, kb0 = init_vars
-
+    if kf0>kb0
+        kb0 = kf0-(gamma*kf0)
+    else
+        kf0 = kb0-(gamma*kb0)
+    end
+    #print("kf0: ", kf0, " kb0: ", kb0, "\n")
     ##The number of intermediate computations to perform between each saved time step
     n_sub_steps = Int64(ceil(t_step/t_step_compute))
     ##adjust to rounded integer value of n_sub_steps
@@ -91,7 +98,7 @@ function simulate(params, t_max, t_step, t_step_compute=0.5, delta=0; init_vars=
     vc=copy(zeros_arr); vc[1]=vc0
 
     ##Set the parameters and variables to be passed to the single_time_step function
-    parameters = [aoverN, k0, Ve_0, k_minus, E, L0, c1, c2, c3, k_lim, alpha, epsilon, epsilon_l]
+    parameters = [aoverN, k0, Ve_0, k_minus, E, L0, c1, c2, c3, k_lim, alpha, epsilon, epsilon_l, gamma]
     variables = [zetaf zetab zetac kf kb Lf Lb vrf vrb xf xb xc vf vb]
     
     #Initialised total simulated time
@@ -147,7 +154,7 @@ function runsims(;parameters=undef, init_vars=undef, t_max=15*3600, t_step=30, t
  
     ##handle input parameters
     if parameters==undef
-        parameters=[3e-3, 10, 3e-2, 5e-3, 1.5e-4, 7.5e-5, 7.8e-3, 35, 35, 3, 1e-2, 1.4, 50, 4, 3, 1e-1, 4e-2, 1, 1, 45]
+        parameters=[3e-3, 10, 3e-2, 5e-3, 1.5e-4, 7.5e-5, 7.8e-3, 35, 35, 3, 1e-2, 1.4, 50, 4, 3, 1e-1, 4e-2, 1, 1, 45, 0.5]
     end
     
     if (ndims(parameters)==1) & (nsims>1)
