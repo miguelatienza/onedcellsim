@@ -10,7 +10,7 @@
 
 ### Prerequisites
 - Python 3
-
+- Linux or Mac OS
 ### Steps
 1. Clone the repository:
    ```bash
@@ -25,11 +25,6 @@
    python -m venv venv
    source venv/bin/activate
    ```
-   - On Windows, use:
-     ```cmd
-     python -m venv venv
-     venv\Scripts\activate
-     ```
 4. Install **onedcellsim**:
    ```bash
    pip install git+https://github.com/miguelatienza/onedcellsim@main
@@ -47,18 +42,10 @@
 
 ## Running the GUI
 
-### Linux or MacOS
 Run the following command to start the GUI:
 ```bash
 bash gui.sh
 ```
-
-### Windows
-Run the following command to start the GUI:
-```cmd
-gui.bat
-```
-
 ---
 
 Feel free to contribute or report issues on the [GitHub repository](https://github.com/miguelatienza/onedcellsim).
