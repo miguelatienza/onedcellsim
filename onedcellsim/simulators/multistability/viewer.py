@@ -10,10 +10,23 @@ from julia.api import Julia
 ## import pyqtSignal
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QSlider, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QSizePolicy, QSpacerItem, QFileDialog, QLabel)
-
-
 from PyQt5 import QtWidgets, QtCore
 
+#get the julia path from the command line, if provided
+if len(sys.argv) > 1:
+    jpath = sys.argv[1]
+else:
+    #get the path to the current script
+    path_to_script = os.path.dirname(os.path.realpath(__file__))
+    jpath = f"{path_to_script}/../../../venv/julia-1.6.7/bin/julia"
+
+jl = Julia(runtime=jpath, compiled_modules=False)
+julia_simulate_file = os.path.join(
+                os.path.dirname(__file__), "simulate.jl"
+            )
+
+simulate = jl.eval(f"""
+            include("{julia_simulate_file}")""")
 
 class FloatSlider(QtWidgets.QWidget):
     valueChanged = QtCore.pyqtSignal(float)
@@ -58,27 +71,7 @@ class FloatSlider(QtWidgets.QWidget):
         return self.spin_box.value()
 
 
-# jpath = "/home/miguel/onedcellsim/venv/julia-1.6.7/bin/julia"
-# jl = Julia(runtime=jpath, compiled_modules=False)
-# path_to_julia_scripts = "/project/ag-moonraedler/MAtienza/cellsbi/simulations/"
-# path_to_julia_scripts = "./"
-# julia_simulate_file = os.path.join(
-#                 os.path.dirname(__file__), "simulate.jl"
-#             )
 
-jpath = "/project/ag-moonraedler/MAtienza/cellsbi/envs/sbi/julia-1.6.7/bin/julia"
-jl = Julia(runtime=jpath, compiled_modules=False)
-path_to_julia_scripts = "/project/ag-moonraedler/MAtienza/cellsbi/simulations/"
-path_to_julia_scripts = "./"
-julia_simulate_file = os.path.join(
-                os.path.dirname(__file__), "simulate.jl"
-            )
-
-simulate = jl.eval(f"""
-            include("{julia_simulate_file}")""")
-# simulate = jl.eval(f"""
-# include("{path_to_julia_scripts}simulate.jl")
-# """)
 
 # PARAMETER_NAMES = ["E", "L0", "Ve_0", "k_minus", "c_1", "c_2", "c_3", "kappa_max", "K_kappa", "n_kappa", "kappa_0", "zeta_max", "K_zeta", "n_zeta", "b", "zeta_0", "alpha", "aoverN", "epsilon", "B", "epsilon_l", "gamma"]
 
