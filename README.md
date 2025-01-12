@@ -2,7 +2,7 @@
 
 <img src="https://github.com/miguelatienza/onedcellsim/blob/main/simgui.png" width="700">
 
-**Onedcellsim** is a project designed to simulate one-dimensional cell migration using Julia, based on [a biomechanical model](https://www.biorxiv.org/content/10.1101/2022.08.30.505377v1). Additionally, it uses simulation-based inference in Python via [SBI](https://github.com/mackelab/sbi) to infer biomechanical cell parameters from observed data.
+**Onedcellsim** is a project designed to simulate one-dimensional cell migration using Julia, based on [a biomechanical model](https://doi.org/10.1016/j.bpj.2023.02.001) as developed by Amiri et al. (2023). Additionally, it uses simulation-based inference in Python via [SBI](https://github.com/mackelab/sbi) to infer biomechanical cell parameters from observed data.
 
 ---
 
